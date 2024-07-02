@@ -36,7 +36,7 @@ export const validateLogin = [
     .trim()
     .escape(),
   check("password", "Password is required").notEmpty(),
-  check("rememberMe", "Remember is required").isBoolean(),
+  check("rememberMe").optional().isBoolean(),
 ];
 
 export const validateUpdate = [
@@ -197,4 +197,116 @@ export const validateBlogCategory = [
   check("categorySlug").optional().isString().trim().escape(),
   check("status", "Status is required").optional().isBoolean(),
   check("blogs").optional().isArray(),
+];
+
+//  ********** Sevice Pages **********
+
+export const ValidateCreateService = [
+  check("metaTitle", "Meta Title is required").isString().trim().escape(),
+  check("metaDescription", "Meta Description is required")
+    .isString()
+    .trim()
+    .escape(),
+  check("canonicalLink", "Canonical Link is required")
+    .isString()
+    .trim()
+    .escape(),
+  check("openGraphImage").optional().isString().trim().escape(),
+  check("robotsText").optional().isString().trim().escape(),
+  check("focusKeyword", "Focus Keyword is required").isString().trim().escape(),
+  check("serviceName", "Service Name is required").isString().trim().escape(),
+  check("slug", "Slug is required").isString().trim().escape(),
+  check("parentService").optional().isMongoId(),
+  check("status", "Status is required").isIn(["publish", "draft"]),
+  check("childServices").optional().isArray(),
+  check("childServices.*").isMongoId(),
+  check("bodyData").optional().isArray(),
+  check("bodyData.*").isObject(),
+];
+
+export const ValidateUpdateService = [
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta Title must be a string")
+    .notEmpty()
+    .withMessage("Meta Title cannot be empty")
+    .trim()
+    .escape(),
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta Description must be a string")
+    .notEmpty()
+    .withMessage("Meta Description cannot be empty")
+    .trim()
+    .escape(),
+  check("canonicalLink")
+    .optional()
+    .isString()
+    .withMessage("Canonical Link must be a string")
+    .notEmpty()
+    .withMessage("Canonical Link cannot be empty")
+    .trim()
+    .escape(),
+  check("openGraphImage")
+    .optional()
+    .isString()
+    .withMessage("Open Graph Image must be a string")
+    .trim()
+    .escape(),
+  check("robotsText")
+    .optional()
+    .isString()
+    .withMessage("Robots Text must be a string")
+    .trim()
+    .escape(),
+  check("focusKeyword")
+    .optional()
+    .isString()
+    .withMessage("Focus Keyword must be a string")
+    .notEmpty()
+    .withMessage("Focus Keyword cannot be empty")
+    .trim()
+    .escape(),
+  check("serviceName")
+    .optional()
+    .isString()
+    .withMessage("Service Name must be a string")
+    .notEmpty()
+    .withMessage("Service Name cannot be empty")
+    .trim()
+    .escape(),
+  check("slug")
+    .optional()
+    .isString()
+    .withMessage("Slug must be a string")
+    .notEmpty()
+    .withMessage("Slug cannot be empty")
+    .trim()
+    .escape(),
+  check("parentService")
+    .optional()
+    .isMongoId()
+    .withMessage("Parent Service must be a valid Mongo ID"),
+  check("status")
+    .optional()
+    .isIn(["publish", "draft"])
+    .withMessage("Status must be either 'publish' or 'draft'"),
+  check("childServices")
+    .optional()
+    .isArray()
+    .withMessage("Child Services must be an array"),
+  check("childServices.*")
+    .optional()
+    .isMongoId()
+    .withMessage("Each Child Service must be a valid Mongo ID"),
+  check("bodyData")
+    .optional()
+    .isArray()
+    .withMessage("Body Data must be an array"),
+  check("bodyData.*")
+    .optional()
+    .isObject()
+    .withMessage("Each Body Data entry must be an object"),
 ];

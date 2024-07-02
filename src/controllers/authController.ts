@@ -53,8 +53,10 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 
 // Login Endpoint
 const login = async (req: Request, res: Response, next: NextFunction) => {
+
   try {
     const { email, password, rememberMe } = req.body;
+
     // Validate user input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -68,11 +70,13 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     if (!user) {
       throw new CustomError(400, "User not found");
     }
+
     // Check if password is correct
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new CustomError(401, "Invalid Credentials");
     }
+
     // Generate Token
     const token = jwt.sign(
       { _id: user._id },
@@ -82,6 +86,7 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
           rememberMe === false ? "" : (process.env.JWT_EXPIRE as string),
       }
     );
+
 
     // Get User Data With Role and Permissions
     const userData = await User.aggregate([

@@ -22,7 +22,7 @@ const checkPermission = async (
       throw new CustomError(404, "User not found");
     }
     if (user.isAdmin) {
-      console.log("User is admin");
+      console.log("Admin is currently accessing.");
       return true;
     }
 

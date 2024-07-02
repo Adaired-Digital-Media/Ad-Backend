@@ -18,8 +18,8 @@ const updateUser = async (req: Request, res: Response, next: NextFunction) => {
         errors: errors.array(),
       });
     }
-
-    const { userId, ...updateData } = req.body;
+    const { userId } = req.params;
+    const { ...updateData } = req.body;
 
     if (updateData.password) {
       const salt = await bcrypt.genSalt(10);
@@ -89,7 +89,7 @@ const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
 
 //Get user by id
 const getUserById = async (req: Request, res: Response, next: NextFunction) => {
-  const { userId } = req.body;
+  const { userId } = req.params;
   try {
     const permissionCheck = await checkPermission(req.userId, "users", 1);
     if (!permissionCheck) return;
@@ -115,7 +115,7 @@ const getUserById = async (req: Request, res: Response, next: NextFunction) => {
 // Delete user
 const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   const LoggedInUser = req.userId;
-  const { userId } = req.body;
+  const { userId } = req.params;
   try {
     const permissionCheck = await checkPermission(req.userId, "users", 1);
     if (!permissionCheck) return;

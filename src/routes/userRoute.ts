@@ -10,15 +10,16 @@ import verifyToken from "../middlewares/authMiddleware";
 import { validateUpdate, validateUserId } from "../helpers/validator";
 
 // Update user route
-router.put("/updateUser", verifyToken, validateUpdate, updateUser);
+router.put("/updateUser/:userId", verifyToken, validateUpdate, updateUser);
+
+// Get user by id route
+router.get("/getUserById/:userId", verifyToken, validateUserId, getUserById);
+
+// Delete user route
+router.delete("/deleteUserById/:userId", verifyToken, validateUserId, deleteUser);
 
 // Get all users route
 router.get("/getAllUsers", verifyToken, getAllUsers);
 
-// Get user by id route
-router.get("/getUserById", verifyToken, validateUserId, getUserById);
-
-// Delete user route
-router.delete("/deleteUserById", verifyToken, validateUserId, deleteUser);
 
 export default router;
