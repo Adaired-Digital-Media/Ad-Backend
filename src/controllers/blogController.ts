@@ -5,8 +5,9 @@ import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
 import checkPermission from "../helpers/authHelper";
 import slugify from "slugify";
+import mongoose from "mongoose";
 
-// Create a new blog
+// ********** Create Blog ***********
 const newBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, body } = req;
@@ -59,11 +60,131 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// Update a blog
+// ********** Read Blog *********
+const readBlog = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { blogId } = req.params;
+
+    let blog;
+
+    if (blogId) {
+      const objectId = new mongoose.Types.ObjectId(blogId);
+
+      blog = await Blog.aggregate([
+        { $match: { _id: objectId } },
+        {
+          $lookup: {
+            from: "blogcategories",
+            localField: "blogCategory",
+            foreignField: "_id",
+            as: "blogCategory",
+          },
+        },
+        { $unwind: "$blogCategory" },
+        {
+          $lookup: {
+            from: "users",
+            localField: "blogAuthor",
+            foreignField: "_id",
+            as: "blogAuthor",
+          },
+        },
+        { $unwind: "$blogAuthor" },
+        {
+          $project: {
+            _id: 1,
+            blogMetaTitle: 1,
+            blogMetaDescription: 1,
+            blogOGImage: 1,
+            blogCategory: {
+              _id: 1,
+              categoryName: 1,
+              categorySlug: 1,
+            },
+            blogImage: 1,
+            blogImageAlt: 1,
+            blogTitle: 1,
+            blogContent: 1,
+            blogTags: 1,
+            blogSlug: 1,
+            blogAuthor: {
+              _id: 1,
+              name: 1,
+              email: 1,
+            },
+            blogStatus: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ]);
+
+      if (!blog.length) {
+        throw new CustomError(404, "Blog not found");
+      }
+    } else {
+      blog = await Blog.aggregate([
+        {
+          $lookup: {
+            from: "blogcategories",
+            localField: "blogCategory",
+            foreignField: "_id",
+            as: "blogCategory",
+          },
+        },
+        { $unwind: "$blogCategory" },
+        {
+          $lookup: {
+            from: "users",
+            localField: "blogAuthor",
+            foreignField: "_id",
+            as: "blogAuthor",
+          },
+        },
+        { $unwind: "$blogAuthor" },
+        {
+          $project: {
+            _id: 1,
+            blogMetaTitle: 1,
+            blogMetaDescription: 1,
+            blogOGImage: 1,
+            blogCategory: {
+              _id: 1,
+              categoryName: 1,
+              categorySlug: 1,
+            },
+            blogImage: 1,
+            blogImageAlt: 1,
+            blogTitle: 1,
+            blogContent: 1,
+            blogTags: 1,
+            blogSlug: 1,
+            blogAuthor: {
+              _id: 1,
+              name: 1,
+              email: 1,
+            },
+            blogStatus: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ]);
+    }
+
+    res.status(200).json(blog);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ********** Update a blog **********
 const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId, body } = req;
-    const { blogId, ...updateData } = body;
+    const { userId, params, body } = req;
+    const { blogId } = params;
+
+    const { ...updateData } = body;
 
     // Check permissions
     const permissionCheck = await checkPermission(userId, "blogs", 2);
@@ -113,4 +234,36 @@ const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { newBlog, updateBlog };
+// ********** Delete Blog **********
+const deleteBlog = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId, params } = req;
+    const { blogId } = params;
+
+    // Check permissions
+    const permissionCheck = await checkPermission(userId, "blogs", 3);
+    if (!permissionCheck) return;
+
+    // Check if blog exists and delete it
+    const blog = await Blog.findByIdAndDelete(blogId);
+    if (!blog) {
+      throw new CustomError(404, "Blog not found");
+    }
+
+    // Remove blog from its category
+    const blogCategoryData = await BlogCategory.findByIdAndUpdate(
+      blog.blogCategory,
+      {
+        $pull: { blogs: { blogId: blog._id } },
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Blog deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export { newBlog, readBlog, updateBlog, deleteBlog };

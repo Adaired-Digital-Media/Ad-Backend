@@ -1,23 +1,27 @@
-import BlogCategory from "../models/blogCategoryModel";
-import { NextFunction, Request, Response } from "express";
-import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
+import { CustomError } from "../middlewares/error";
+import CaseStudyCategories from "../models/caseStudyCategoryModel";
+import { Request, Response, NextFunction } from "express";
 import checkPermission from "../helpers/authHelper";
 import slugify from "slugify";
 import mongoose from "mongoose";
 
-// ********** Create Blog Category **********
-const newBlogCategory = async (
+// ********** Create CaseStudy Category ***********
+const newCaseStudyCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const { userId, body } = req;
-    const { categoryName, categorySlug, parentCategory } = body;
+    const { categoryName, categorySlug } = body;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "blogCategories", 0);
+    const permissionCheck = await checkPermission(
+      userId,
+      "caseStudyCategories",
+      0
+    );
     if (!permissionCheck) return;
 
     // Validate user input
@@ -30,15 +34,19 @@ const newBlogCategory = async (
     }
 
     // Check if categoryName or categorySlug is already in use
-    const existingCategory = await BlogCategory.findOne({
+    const existingCategory = await CaseStudyCategories.findOne({
       $or: [
-        { categoryName: { $regex: new RegExp("^" + categoryName + "$", "i") } },
         {
-          categorySlug: slugify(categorySlug || categoryName, { lower: true }),
+          categoryName: {
+            $regex: categoryName,
+            $options: "i",
+          },
+        },
+        {
+          categorySlug: slugify(categorySlug, { lower: true }),
         },
       ],
     });
-
     if (existingCategory) {
       throw new CustomError(
         400,
@@ -51,24 +59,13 @@ const newBlogCategory = async (
     // Create new category
     const newCategoryData = {
       ...body,
+      categoryName: categoryName.trim(),
       categorySlug: slugify(categorySlug || categoryName, { lower: true }),
     };
-    const newCategory = await BlogCategory.create(newCategoryData);
-
-    // Update parent's subcategories
-    if (parentCategory) {
-      const parentCategoryData = await BlogCategory.findByIdAndUpdate(
-        parentCategory,
-        { $push: { subCategories: { categoryId: newCategory._id } } },
-        { new: true }
-      );
-      if (!parentCategoryData) {
-        throw new CustomError(404, "Parent category not found");
-      }
-    }
+    const newCategory = await CaseStudyCategories.create(newCategoryData);
 
     res.status(201).json({
-      message: "Category created successfully",
+      message: "Case Study Category created successfully",
       data: newCategory,
     });
   } catch (error) {
@@ -76,8 +73,8 @@ const newBlogCategory = async (
   }
 };
 
-// ********** Read Blog Categories **********
-const readCategories = async (
+// ********** Read CaseStudy Categories **********
+const readCaseStudyCategories = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -91,28 +88,15 @@ const readCategories = async (
       // Convert categoryId to ObjectId
       const objectId = new mongoose.Types.ObjectId(categoryId);
       // Fetch a single category by ID
-      categories = await BlogCategory.aggregate([
+      categories = await CaseStudyCategories.aggregate([
         { $match: { _id: objectId } },
-        {
-          $lookup: {
-            from: "blogcategories",
-            localField: "_id",
-            foreignField: "parentCategory",
-            as: "subcategories",
-          },
-        },
         {
           $project: {
             _id: 1,
             categoryName: 1,
             categorySlug: 1,
-            parentCategory: 1,
-            subcategories: {
-              _id: 1,
-              categoryName: 1,
-              categorySlug: 1,
-              parentCategory: 1,
-            },
+            technologies: 1,
+            caseStudies: 1,
             status: 1,
           },
         },
@@ -123,27 +107,14 @@ const readCategories = async (
       }
     } else {
       // Fetch all categories
-      categories = await BlogCategory.aggregate([
-        {
-          $lookup: {
-            from: "blogcategories",
-            localField: "_id",
-            foreignField: "parentCategory",
-            as: "subcategories",
-          },
-        },
+      categories = await CaseStudyCategories.aggregate([
         {
           $project: {
             _id: 1,
             categoryName: 1,
             categorySlug: 1,
-            parentCategory: 1,
-            subcategories: {
-              _id: 1,
-              categoryName: 1,
-              categorySlug: 1,
-              parentCategory: 1,
-            },
+            technologies: 1,
+            caseStudies: 1,
             status: 1,
           },
         },
@@ -156,8 +127,8 @@ const readCategories = async (
   }
 };
 
-// ********** Update Category **********
-const updateBlogCategory = async (
+// ********** Update CaseStudy Category **********
+const updateCaseStudyCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -167,7 +138,7 @@ const updateBlogCategory = async (
     const { categoryId } = params;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "blogCategories", 2);
+    const permissionCheck = await checkPermission(userId, "caseStudyCategories", 2);
     if (!permissionCheck) return;
 
     // Validate user input
@@ -181,7 +152,7 @@ const updateBlogCategory = async (
 
     // Check if categoryName or categorySlug is already in use
     if (body.categoryName || body.categorySlug) {
-      const existingCategory = await BlogCategory.findOne({
+      const existingCategory = await CaseStudyCategories.findOne({
         $or: [
           {
             categoryName: {
@@ -218,7 +189,7 @@ const updateBlogCategory = async (
         lower: true,
       });
     }
-    const updatedCategory = await BlogCategory.findByIdAndUpdate(
+    const updatedCategory = await CaseStudyCategories.findByIdAndUpdate(
       categoryId,
       updatedCategoryData,
       { new: true }
@@ -237,8 +208,8 @@ const updateBlogCategory = async (
   }
 };
 
-// ********** Delete Category **********
-const deleteBlogCategory = async (
+// ********** Delete CaseStudy Category **********
+const deleteCaseStudyCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -248,21 +219,12 @@ const deleteBlogCategory = async (
     const { categoryId } = params;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "blogCategories", 3);
+    const permissionCheck = await checkPermission(userId, "caseStudyCategories", 3);
     if (!permissionCheck) return;
 
-    const category = await BlogCategory.findByIdAndDelete(categoryId);
+    const category = await CaseStudyCategories.findByIdAndDelete(categoryId);
     if (!category) {
       throw new CustomError(404, "Category not found");
-    }
-
-    // Remove category from parent's subcategories
-    if (category.parentCategory) {
-      await BlogCategory.findByIdAndUpdate(
-        category.parentCategory,
-        { $pull: { subCategories: { categoryId: category._id } } },
-        { new: true }
-      );
     }
 
     res.status(200).json({
@@ -274,8 +236,8 @@ const deleteBlogCategory = async (
 };
 
 export {
-  newBlogCategory,
-  readCategories,
-  updateBlogCategory,
-  deleteBlogCategory,
+  newCaseStudyCategory,
+  readCaseStudyCategories,
+  updateCaseStudyCategory,
+  deleteCaseStudyCategory,
 };

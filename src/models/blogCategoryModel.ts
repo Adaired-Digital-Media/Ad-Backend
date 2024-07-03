@@ -3,10 +3,6 @@ import { BlogCategoryTypes } from "../types/blogCategoryTypes";
 
 const blogCategorySchema = new Schema(
   {
-    isSubCategory: {
-      type: Boolean,
-      default: false,
-    },
     parentCategory: {
       type: Schema.Types.ObjectId,
       ref: "BlogCategory",

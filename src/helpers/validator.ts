@@ -1,4 +1,4 @@
-import { check } from "express-validator";
+import { check, body } from "express-validator";
 
 export const validateRegister = [
   check("name", "Name is required").notEmpty().isString().trim().escape(),
@@ -130,7 +130,7 @@ export const validateRoleId = [
     .withMessage("Please enter a valid role ID"),
 ];
 
-// Blogs and Blog Categories
+// *********** Blogs and Blog Categories **********
 
 export const validateBlog = [
   check("blogMetaTitle", "Meta title is required")
@@ -156,6 +156,7 @@ export const validateBlog = [
   check("blogTags").optional().isArray(),
   check("blogSlug", "Slug is required").notEmpty().isString().trim().escape(),
   check("blogAuthor").optional().isMongoId(),
+  check("blogStatus").optional().isString(),
 ];
 
 export const validateUpdateBlog = [
@@ -186,17 +187,76 @@ export const validateUpdateBlog = [
 ];
 
 export const validateBlogCategory = [
-  check("isSubCategory").optional().isBoolean(),
-  check("parentCategory").if(check("isSubCategory").equals("true")).isMongoId(),
-  check("subCategories").if(check("isSubCategory").equals("false")).isArray(),
+  check("parentCategory")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid parent category ID"),
+
+  check("subCategories")
+    .optional()
+    .isArray()
+    .withMessage("Subcategories must be an array"),
+  body("subCategories.*.categoryId")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid subcategory ID"),
+
   check("categoryName", "Category name is required")
     .notEmpty()
     .isString()
     .trim()
-    .escape(),
-  check("categorySlug").optional().isString().trim().escape(),
-  check("status", "Status is required").optional().isBoolean(),
-  check("blogs").optional().isArray(),
+    .escape()
+    .withMessage("Category name must be a string"),
+
+  check("categorySlug", "Category slug is required")
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape()
+    .withMessage("Category slug must be a string"),
+
+  check("status")
+    .optional()
+    .isBoolean()
+    .withMessage("Status must be a boolean"),
+
+  check("blogs").optional().isArray().withMessage("Blogs must be an array"),
+  body("blogs.*.blogId").optional().isMongoId().withMessage("Invalid blog ID"),
+];
+
+export const validateUpdateBlogCategory = [
+  check("parentCategory")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid parent category ID"),
+  check("subCategories")
+    .optional()
+    .isArray()
+    .withMessage("Subcategories must be an array"),
+  body("subCategories.*.categoryId")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid subcategory ID"),
+  check("categoryName")
+    .notEmpty()
+    .optional()
+    .isString()
+    .trim()
+    .escape()
+    .withMessage("Category name must be a string"),
+  check("categorySlug")
+    .notEmpty()
+    .optional()
+    .isString()
+    .trim()
+    .escape()
+    .withMessage("Category slug must be a string"),
+  check("status")
+    .optional()
+    .isBoolean()
+    .withMessage("Status must be a boolean"),
+  check("blogs").optional().isArray().withMessage("Blogs must be an array"),
+  body("blogs.*.blogId").optional().isMongoId().withMessage("Invalid blog ID"),
 ];
 
 //  ********** Sevice Pages **********
@@ -309,4 +369,140 @@ export const ValidateUpdateService = [
     .optional()
     .isObject()
     .withMessage("Each Body Data entry must be an object"),
+];
+
+// ********** Case Studies **********
+
+export const validateCaseStudyCategory = [
+  check("categoryName", "Category name is required")
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("categorySlug", "Category slug is required")
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("technologies")
+    .optional()
+    .isArray()
+    .withMessage("Technologies must be an array"),
+  check("technologies.*.icon", "Technology icon is required")
+    .if(
+      (value, { req }) =>
+        req.body.technologies && req.body.technologies.length > 0
+    )
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("technologies.*.name", "Technology name is required")
+    .if(
+      (value, { req }) =>
+        req.body.technologies && req.body.technologies.length > 0
+    )
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("caseStudies")
+    .optional()
+    .isArray()
+    .withMessage("Case studies must be an array"),
+  check("caseStudies.*.caseStudyId", "Case study ID must be a valid Mongo ID")
+    .if(
+      (value, { req }) =>
+        req.body.caseStudies && req.body.caseStudies.length > 0
+    )
+    .isMongoId(),
+  check("status", "Status must be a boolean").optional().isBoolean(),
+];
+
+export const validateCaseStudyUpdateCategory = [
+  check("categoryName", "Category name is required")
+    .optional()
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("categorySlug", "Category slug is required")
+    .optional()
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("technologies")
+    .optional()
+    .isArray()
+    .withMessage("Technologies must be an array"),
+  check("technologies.*.icon", "Technology icon is required")
+    .optional()
+    .if(
+      (value, { req }) =>
+        req.body.technologies && req.body.technologies.length > 0
+    )
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("technologies.*.name", "Technology name is required")
+    .optional()
+    .if(
+      (value, { req }) =>
+        req.body.technologies && req.body.technologies.length > 0
+    )
+    .notEmpty()
+    .isString()
+    .trim()
+    .escape(),
+  check("caseStudies")
+    .optional()
+    .isArray()
+    .withMessage("Case studies must be an array"),
+  check("caseStudies.*.caseStudyId", "Case study ID must be a valid Mongo ID")
+    .optional()
+    .if(
+      (value, { req }) =>
+        req.body.caseStudies && req.body.caseStudies.length > 0
+    )
+    .isMongoId(),
+  check("status", "Status must be a boolean").optional().isBoolean(),
+];
+
+export const validateCaseStudy = [
+  check("categoryId", "Category ID is required").notEmpty().isMongoId(),
+  check("categorySlug", "Category Slug is required").notEmpty().trim().escape(),
+  check("colorScheme", "Color Scheme is required").notEmpty().trim().escape(),
+  check("cardImage", "Card Image is required").notEmpty().trim().escape(),
+  check("slug", "Slug is required").notEmpty().trim().escape(),
+  check("subHeading", "Sub Heading is required").notEmpty().trim().escape(),
+  check("caseStudyName", "Case Study Name is required").notEmpty().trim().escape(),
+  check("caseStudyDescription", "Case Study Description is required").notEmpty().trim().escape(),
+  check("caseStudyImage", "Case Study Image is required").notEmpty().trim().escape(),
+  check("aboutProjectDescription", "About Project Description is required").notEmpty().trim().escape(),
+  check("challengesImage", "Challenges Image is required").notEmpty().trim().escape(),
+  check("challengesDescription", "Challenges Description is required").notEmpty().trim().escape(),
+  check("solutionsImage", "Solutions Image is required").notEmpty().trim().escape(),
+  check("solutionsDescription", "Solutions Description is required").notEmpty().trim().escape(),
+  check("challengesAndSolutions.*.title", "Challenge and Solution Title is required").optional().notEmpty().trim().escape(),
+  check("challengesAndSolutions.*.content", "Challenge and Solution Content is required").optional().notEmpty().trim().escape(),
+  check("technologiesUsedTitle", "Technologies Used Title is required").notEmpty().trim().escape(),
+  check("technologiesUsedDescription", "Technologies Used Description is required").notEmpty().trim().escape(),
+  check("technologiesUsed.*.technologyId", "Technology ID is required").optional().notEmpty().isMongoId(),
+  check("goalsTitle", "Goals Title is required").notEmpty().trim().escape(),
+  check("goalsDescription", "Goals Description is required").notEmpty().trim().escape(),
+  check("objectives.*.title", "Objective Title is required").optional().notEmpty().trim().escape(),
+  check("objectives.*.content", "Objective Content is required").optional().notEmpty().trim().escape(),
+  check("stratergy.*.title", "Strategy Title is required").optional().notEmpty().trim().escape(),
+  check("stratergy.*.content", "Strategy Content is required").optional().notEmpty().trim().escape(),
+  check("goalImage", "Goal Image is required").notEmpty().trim().escape(),
+  check("growthBox.*.title", "Growth Box Title is required").optional().notEmpty().trim().escape(),
+  check("growthBox.*.content", "Growth Box Content is required").optional().notEmpty().trim().escape(),
+  check("resultDescription", "Result Description is required").notEmpty().trim().escape(),
+  check("resultBox.*.title", "Result Box Title is required").optional().notEmpty().trim().escape(),
+  check("resultBox.*.percentage", "Result Box Percentage is required").optional().notEmpty().trim().escape(),
+  check("resultBox.*.description", "Result Box Description is required").optional().notEmpty().trim().escape(),
+  check("resultBox.*.icon", "Result Box Icon is required").optional().notEmpty().trim().escape(),
+  check("resultFinalDescription", "Result Final Description is required").notEmpty().trim().escape(),
 ];

@@ -1,5 +1,4 @@
 export type BlogCategoryTypes = {
-  isSubCategory: boolean;
   parentCategory: string;
   subCategories: { categoryId: string }[];
   categoryName: string;

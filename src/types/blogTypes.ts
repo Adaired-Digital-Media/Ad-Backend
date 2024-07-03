@@ -10,4 +10,5 @@ export type BlogTypes = {
   blogTags: string[];
   blogSlug: string;
   blogAuthor: string;
+  blogStatus: string;
 };

@@ -13,8 +13,8 @@ import userRoute from "./routes/userRoute";
 import roleRoute from "./routes/roleRoute";
 import blogRoute from "./routes/blogRoute";
 import blogCategoryRoute from "./routes/blogCategoryRoute";
+import caseStudyCategoryRoute from "./routes/caseStudyCategoryRoute";
 import serviceRoute from "./routes/serviceRoute";
-
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -39,8 +39,8 @@ app.use("/api/v2/user", userRoute);
 app.use("/api/v2/role", roleRoute);
 app.use("/api/v2/blog", blogRoute);
 app.use("/api/v2/blog/category", blogCategoryRoute);
+app.use("/api/v2/case-study/category", caseStudyCategoryRoute);
 app.use("/api/v2/service", serviceRoute);
-
 
 // Error Handler
 app.use(errorHandler);
