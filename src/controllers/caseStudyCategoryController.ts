@@ -60,7 +60,7 @@ const newCaseStudyCategory = async (
     const newCategoryData = {
       ...body,
       categoryName: categoryName.trim(),
-      categorySlug: slugify(categorySlug || categoryName, { lower: true }),
+      categorySlug: slugify(categorySlug , { lower: true }),
     };
     const newCategory = await CaseStudyCategories.create(newCategoryData);
 

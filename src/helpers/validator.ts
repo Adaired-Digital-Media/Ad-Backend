@@ -1,5 +1,6 @@
 import { check, body } from "express-validator";
 
+// ********** User and Authentication ***********
 export const validateRegister = [
   check("name", "Name is required").notEmpty().isString().trim().escape(),
   check("email", "Email is required")
@@ -76,7 +77,7 @@ export const validateUserId = [
     .withMessage("Please enter a valid user ID"),
 ];
 
-// Roles
+// ********** Roles **********
 export const validateRole = [
   check("roleName", "Role name is required")
     .notEmpty()
@@ -276,6 +277,7 @@ export const ValidateCreateService = [
   check("focusKeyword", "Focus Keyword is required").isString().trim().escape(),
   check("serviceName", "Service Name is required").isString().trim().escape(),
   check("slug", "Slug is required").isString().trim().escape(),
+  check("colorScheme", "Color Scheme is requied").isString().trim().escape(),
   check("parentService").optional().isMongoId(),
   check("status", "Status is required").isIn(["publish", "draft"]),
   check("childServices").optional().isArray(),
@@ -343,6 +345,14 @@ export const ValidateUpdateService = [
     .withMessage("Slug must be a string")
     .notEmpty()
     .withMessage("Slug cannot be empty")
+    .trim()
+    .escape(),
+  check("colorScheme", "Color Scheme is required")
+    .optional()
+    .isString()
+    .withMessage("Color Scheme must be a string")
+    .notEmpty()
+    .withMessage("Color Scheme cannot be empty")
     .trim()
     .escape(),
   check("parentService")
@@ -472,37 +482,335 @@ export const validateCaseStudyUpdateCategory = [
 
 export const validateCaseStudy = [
   check("categoryId", "Category ID is required").notEmpty().isMongoId(),
-  check("categorySlug", "Category Slug is required").notEmpty().trim().escape(),
+  check("categorySlug", "Category Slug is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
   check("colorScheme", "Color Scheme is required").notEmpty().trim().escape(),
   check("cardImage", "Card Image is required").notEmpty().trim().escape(),
   check("slug", "Slug is required").notEmpty().trim().escape(),
   check("subHeading", "Sub Heading is required").notEmpty().trim().escape(),
-  check("caseStudyName", "Case Study Name is required").notEmpty().trim().escape(),
-  check("caseStudyDescription", "Case Study Description is required").notEmpty().trim().escape(),
-  check("caseStudyImage", "Case Study Image is required").notEmpty().trim().escape(),
-  check("aboutProjectDescription", "About Project Description is required").notEmpty().trim().escape(),
-  check("challengesImage", "Challenges Image is required").notEmpty().trim().escape(),
-  check("challengesDescription", "Challenges Description is required").notEmpty().trim().escape(),
-  check("solutionsImage", "Solutions Image is required").notEmpty().trim().escape(),
-  check("solutionsDescription", "Solutions Description is required").notEmpty().trim().escape(),
-  check("challengesAndSolutions.*.title", "Challenge and Solution Title is required").optional().notEmpty().trim().escape(),
-  check("challengesAndSolutions.*.content", "Challenge and Solution Content is required").optional().notEmpty().trim().escape(),
-  check("technologiesUsedTitle", "Technologies Used Title is required").notEmpty().trim().escape(),
-  check("technologiesUsedDescription", "Technologies Used Description is required").notEmpty().trim().escape(),
-  check("technologiesUsed.*.technologyId", "Technology ID is required").optional().notEmpty().isMongoId(),
+  check("caseStudyName", "Case Study Name is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("caseStudyDescription", "Case Study Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("caseStudyImage", "Case Study Image is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("aboutProjectDescription", "About Project Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("challengesImage", "Challenges Image is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("challengesDescription", "Challenges Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("solutionsImage", "Solutions Image is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("solutionsDescription", "Solutions Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "challengesAndSolutions.*.title",
+    "Challenge and Solution Title is required"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "challengesAndSolutions.*.content",
+    "Challenge and Solution Content is required"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("technologiesUsedTitle", "Technologies Used Title is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "technologiesUsedDescription",
+    "Technologies Used Description is required"
+  )
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("technologiesUsed.*.id", "Technology ID is required")
+    .optional()
+    .notEmpty()
+    .isMongoId(),
+  check("technologiesUsed.*.icon", "Technology icon url required")
+    .optional()
+    .notEmpty()
+    .isMongoId(),
+  check("technologiesUsed.*.name", "Technology name is required")
+    .optional()
+    .notEmpty()
+    .isMongoId(),
   check("goalsTitle", "Goals Title is required").notEmpty().trim().escape(),
-  check("goalsDescription", "Goals Description is required").notEmpty().trim().escape(),
-  check("objectives.*.title", "Objective Title is required").optional().notEmpty().trim().escape(),
-  check("objectives.*.content", "Objective Content is required").optional().notEmpty().trim().escape(),
-  check("stratergy.*.title", "Strategy Title is required").optional().notEmpty().trim().escape(),
-  check("stratergy.*.content", "Strategy Content is required").optional().notEmpty().trim().escape(),
+  check("goalsDescription", "Goals Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("objectives.*.title", "Objective Title is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("objectives.*.content", "Objective Content is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("stratergy.*.title", "Strategy Title is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("stratergy.*.content", "Strategy Content is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
   check("goalImage", "Goal Image is required").notEmpty().trim().escape(),
-  check("growthBox.*.title", "Growth Box Title is required").optional().notEmpty().trim().escape(),
-  check("growthBox.*.content", "Growth Box Content is required").optional().notEmpty().trim().escape(),
-  check("resultDescription", "Result Description is required").notEmpty().trim().escape(),
-  check("resultBox.*.title", "Result Box Title is required").optional().notEmpty().trim().escape(),
-  check("resultBox.*.percentage", "Result Box Percentage is required").optional().notEmpty().trim().escape(),
-  check("resultBox.*.description", "Result Box Description is required").optional().notEmpty().trim().escape(),
-  check("resultBox.*.icon", "Result Box Icon is required").optional().notEmpty().trim().escape(),
-  check("resultFinalDescription", "Result Final Description is required").notEmpty().trim().escape(),
+  check("growthBox.*.title", "Growth Box Title is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("growthBox.*.content", "Growth Box Content is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultDescription", "Result Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.title", "Result Box Title is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.percentage", "Result Box Percentage is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.description", "Result Box Description is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.icon", "Result Box Icon is required")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultFinalDescription", "Result Final Description is required")
+    .notEmpty()
+    .trim()
+    .escape(),
+];
+
+export const validateUpdateCaseStudy = [
+  check("categoryId", "Category ID must be a valid Mongo ID")
+    .optional()
+    .isMongoId(),
+  check("categorySlug", "Category Slug must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("colorScheme", "Color Scheme must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("cardImage", "Card Image must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("slug", "Slug must not be empty").optional().notEmpty().trim().escape(),
+  check("subHeading", "Sub Heading must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("caseStudyName", "Case Study Name must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("caseStudyDescription", "Case Study Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("caseStudyImage", "Case Study Image must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "aboutProjectDescription",
+    "About Project Description must not be empty"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("challengesImage", "Challenges Image must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("challengesDescription", "Challenges Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("solutionsImage", "Solutions Image must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("solutionsDescription", "Solutions Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "challengesAndSolutions.*.title",
+    "Challenge and Solution Title must not be empty"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "challengesAndSolutions.*.content",
+    "Challenge and Solution Content must not be empty"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("technologiesUsedTitle", "Technologies Used Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check(
+    "technologiesUsedDescription",
+    "Technologies Used Description must not be empty"
+  )
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("technologiesUsed.*.id", "Technology ID must be a valid Mongo ID")
+    .optional()
+    .isMongoId(),
+  check("technologiesUsed.*.icon", "Technology icon URL must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("technologiesUsed.*.name", "Technology name must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("goalsTitle", "Goals Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("goalsDescription", "Goals Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("objectives.*.title", "Objective Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("objectives.*.content", "Objective Content must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("stratergy.*.title", "Strategy Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("stratergy.*.content", "Strategy Content must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("goalImage", "Goal Image must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("growthBox.*.title", "Growth Box Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("growthBox.*.content", "Growth Box Content must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultDescription", "Result Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.title", "Result Box Title must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.percentage", "Result Box Percentage must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.description", "Result Box Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultBox.*.icon", "Result Box Icon must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
+  check("resultFinalDescription", "Result Final Description must not be empty")
+    .optional()
+    .notEmpty()
+    .trim()
+    .escape(),
 ];

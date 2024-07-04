@@ -11,6 +11,7 @@ const serviceSchema = new Schema<ServiceTypes>(
     focusKeyword: { type: String, required: true },
     serviceName: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
+    colorScheme: { type: String, required: true },
     parentService: {
       type: Schema.Types.ObjectId,
       ref: "Service",

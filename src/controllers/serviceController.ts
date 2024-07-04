@@ -70,7 +70,6 @@ const readServices = async (
   next: NextFunction
 ) => {
   const { identifier } = req.params;
-  console.log(identifier);
 
   try {
     let service;
@@ -159,7 +158,7 @@ const updateService = async (
 // ********** Delete Service **********
 
 const deleteService = async (
-  req: Request,
+  req: Request, 
   res: Response,
   next: NextFunction
 ) => {

@@ -9,6 +9,7 @@ export type ServiceTypes = {
   focusKeyword: string;
   serviceName: string;
   slug: string;
+  colorScheme: string;
   parentService?: Types.ObjectId | null; // ObjectId as a string or null
   status: "publish" | "draft";
   childServices: Array<Types.ObjectId>; // ObjectId as a string

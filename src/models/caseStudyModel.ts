@@ -19,7 +19,6 @@ const caseStudySchema = new Schema(
     },
     categorySlug: {
       type: String,
-      required: [true, "Category Slug is required"],
     },
     colorScheme: {
       type: String,
@@ -84,9 +83,14 @@ const caseStudySchema = new Schema(
     technologiesUsed: {
       type: [
         {
-          technologyId: {
+          id: {
             type: Schema.Types.ObjectId,
-            required: [true, "Technology ID is required"],
+          },
+          icon: {
+            type: String,
+          },
+          name: {
+            type: String,
           },
         },
       ],
