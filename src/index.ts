@@ -28,8 +28,8 @@ app.use(cookieParser());
 // CORS Middleware
 app.use(
   cors({
-    origin: "*",
-    credentials: false, // credentials cannot be used with wildcard origin
+    origin: "http://localhost:3000", // specify the exact origin
+    credentials: true, // allow credentials
   })
 );
 

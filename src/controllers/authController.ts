@@ -53,9 +53,8 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 
 // Login Endpoint
 const login = async (req: Request, res: Response, next: NextFunction) => {
-
   try {
-    const { email, password, rememberMe } = req.body;
+    const { email, password, rememberMe = false } = req.body;
 
     // Validate user input
     const errors = validationResult(req);
@@ -77,16 +76,19 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       throw new CustomError(401, "Invalid Credentials");
     }
 
+    // Determine token expiry based on rememberMe
+    const jwtExpire = rememberMe
+      ? process.env.JWT_EXPIRE_REMEMBER_ME
+      : process.env.JWT_EXPIRE_DEFAULT;
+
     // Generate Token
     const token = jwt.sign(
       { _id: user._id },
       process.env.JWT_SECRET as string,
       {
-        expiresIn:
-          rememberMe === false ? "" : (process.env.JWT_EXPIRE as string),
+        expiresIn: jwtExpire,
       }
     );
-
 
     // Get User Data With Role and Permissions
     const userData = await User.aggregate([
@@ -129,8 +131,21 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
         },
       },
     ]);
-    res.cookie("ad_access", token).status(200).json({
-      message: "User logged in successfully!",
+
+    // Set token in a cookie
+    const cookieMaxAge = rememberMe
+      ? parseInt(process.env.COOKIE_MAX_AGE_REMEMBER_ME || "0", 10)
+      : parseInt(process.env.COOKIE_MAX_AGE_DEFAULT || "0", 10);
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      // secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+      maxAge: cookieMaxAge,
+    });
+
+    // Respond with success
+    res.status(200).json({
+      message: "Login successful",
       ad_access: token,
       userData: userData[0],
     });
