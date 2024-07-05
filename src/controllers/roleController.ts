@@ -1,10 +1,11 @@
 import Role from "../models/roleModel";
+import User from "../models/userModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
 import checkPermission from "../helpers/authHelper";
 
-// Create a new role
+// ********** Create role **********
 const newRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const permissionCheck = await checkPermission(req.userId, "roles", 0);
@@ -47,11 +48,36 @@ const newRole = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// Update Role
+// ********** Read Roles **********
+const findRoles = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { roleId } = req.params;
+    if (roleId) {
+      const role = await Role.findById(roleId).lean();
+      res.status(200).json({
+        message: "Role fetched successfully",
+        data: role,
+      });
+    } else {
+      const roles = await Role.find();
+      res.status(200).json({
+        message: "Roles fetched successfully",
+        data: roles,
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ********** Update Role **********
 
 const updateRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const permissionCheck = await checkPermission(req.userId, "roles", 1);
+    const { roleId } = req.params;
+    const { roleName, rolePermissions, ...updateData } = req.body;
+
+    const permissionCheck = await checkPermission(req.userId, "roles", 2);
     if (!permissionCheck) return;
 
     const errors = validationResult(req);
@@ -62,12 +88,10 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    const { roleId, roleName, rolePermissions, ...updateData } = req.body;
-
     // Check role name availability
     if (roleName) {
       const existingRole = await Role.findOne({
-        roleName: { $regex: roleName, $options: "i" },
+        roleName: { $regex: roleName, $options: "i", $ne: roleName },
         _id: { $ne: roleId },
       });
       if (existingRole) {
@@ -112,38 +136,15 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// Find Roles
-const findRoles = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const permissionCheck = await checkPermission(req.userId, "roles", 2);
-    if (!permissionCheck) return;
-    const { roleId } = req.body;
-    if (roleId) {
-      const role = await Role.find({ _id: roleId });
-      res.status(200).json({
-        message: "Role fetched successfully",
-        data: role,
-      });
-    } else {
-      const roles = await Role.find();
-      res.status(200).json({
-        message: "Roles fetched successfully",
-        data: roles,
-      });
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Delete Role
+// ********** Delete Role ***********
 
 const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { roleId } = req.params;
+
     const permissionCheck = await checkPermission(req.userId, "roles", 3);
     if (!permissionCheck) return;
 
-    const { roleId } = req.body;
     if (!roleId) {
       throw new CustomError(400, "Invalid input");
     }
@@ -154,6 +155,9 @@ const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     await Role.deleteOne({ _id: roleId });
+
+    // After Deleting the role assign (user) role to user
+    await User.updateMany({ role: roleId }, { $set: { role: null } });
     res.status(200).json({
       message: "Role deleted successfully",
     });

@@ -1,9 +1,5 @@
 import express, { Router } from "express";
-import {
-  validateRole,
-  validateUpdateRole,
-  validateRoleId,
-} from "../helpers/validator";
+import { validateRole, validateUpdateRole } from "../helpers/validator";
 import {
   newRole,
   updateRole,
@@ -14,8 +10,8 @@ import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
 router.post("/createNewRole", verifyToken, validateRole, newRole);
-router.put("/editRole", verifyToken, validateUpdateRole, updateRole);
-router.get("/findRoles", verifyToken, validateRoleId, findRoles);
-router.delete("/deleteRole", verifyToken, validateRoleId, deleteRole);
+router.get("/readRoles/:roleId?", findRoles);
+router.put("/updateRole/:roleId", verifyToken, validateUpdateRole, updateRole);
+router.delete("/deleteRole/:roleId?", verifyToken, deleteRole);
 
 export default router;

@@ -17,7 +17,7 @@ const createService = async (
     const { slug } = body;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "service", 0);
+    const permissionCheck = await checkPermission(userId, "services", 0);
     if (!permissionCheck) return;
 
     // Validate user input
