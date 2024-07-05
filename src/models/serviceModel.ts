@@ -18,7 +18,13 @@ const serviceSchema = new Schema<ServiceTypes>(
       default: null,
     },
     status: { type: String, enum: ["publish", "draft"], required: true },
-    childServices: [{ type: Schema.Types.ObjectId, ref: "Service" }],
+    childServices: {
+      type: [
+        {
+          childServiceId: { type: Schema.Types.ObjectId, ref: "Service" },
+        },
+      ],
+    },
     bodyData: [{ type: Schema.Types.Mixed }],
   },
   {

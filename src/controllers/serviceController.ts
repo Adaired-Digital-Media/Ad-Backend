@@ -48,7 +48,7 @@ const createService = async (
     if (body.parentService) {
       const parentService = await Service.findByIdAndUpdate(
         body.parentService,
-        { $push: { childServices: service._id } },
+        { $push: { childServices: { childServiceId: service._id } } },
         { new: true }
       );
     }
@@ -158,7 +158,7 @@ const updateService = async (
 // ********** Delete Service **********
 
 const deleteService = async (
-  req: Request, 
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -172,6 +172,15 @@ const deleteService = async (
 
     // Delete service
     const deletedService = await Service.findByIdAndDelete(id);
+
+    // Remove service from parent's array
+    if (deletedService.parentService) {
+      const parentService = await Service.findByIdAndUpdate(
+        deletedService.parentService,
+        { $pull: { childServices: { childServiceId: id } } },
+        { new: true }
+      );
+    }
 
     if (!deletedService) {
       return next(new CustomError(404, "Service not found!"));

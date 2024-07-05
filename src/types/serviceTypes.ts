@@ -10,8 +10,10 @@ export type ServiceTypes = {
   serviceName: string;
   slug: string;
   colorScheme: string;
-  parentService?: Types.ObjectId | null; // ObjectId as a string or null
+  parentService?: Types.ObjectId | null; // ObjectId or null
   status: "publish" | "draft";
-  childServices: Array<Types.ObjectId>; // ObjectId as a string
+  childServices: Array<{
+    childServiceId: Types.ObjectId;
+  }>; // Array of objects with childServiceId
   bodyData: Array<Record<string, any>>; // Array of objects with any shape
 };
