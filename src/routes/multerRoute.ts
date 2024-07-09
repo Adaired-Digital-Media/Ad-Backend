@@ -13,7 +13,7 @@ const router: Router = express.Router();
 // Endpoint to upload files
 router.post(
   "/upload",
-  upload.array("files"),
+  // upload.array("files"),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const files = req.files as Express.Multer.File[];
