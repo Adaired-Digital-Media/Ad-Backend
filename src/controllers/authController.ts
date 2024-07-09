@@ -5,55 +5,8 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
 
-// Register Endpoint
-// const register = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { name, email, password, contact, userStatus } = req.body;
-//     // Validate user input
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(400).json({
-//         message: "Invalid input",
-//         errors: errors.array(),
-//       });
-//     }
-//     // Check if user already exists
-//     const userExists = await User.findOne({ email });
-//     if (userExists) {
-//       throw new CustomError(400, "User already exists");
-//     }
-//     // Hash Password
-//     const salt = await bcrypt.genSalt(10);
-//     const hashedPassword = await bcrypt.hash(password, salt);
-//     // Create User
-//     const user = await User.create({
-//       name,
-//       email: email.toLowerCase(),
-//       userName: email.split("@")[0].toLowerCase(),
-//       password: hashedPassword,
-//       contact,
-//       userStatus,
-//     });
-//     // Check if Admin
-//     const Users = await User.find();
-//     if (Users.length === 1) {
-//       user.isAdmin = true;
-//       user.role = null;
-//       await user.save();
-//     }
-//     // Generate Token
-//     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, {
-//       expiresIn: process.env.JWT_EXPIRE,
-//     });
-//     res.status(201).json({ token, user });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log("Request body:", req.body);
     const { name, email, password, contact, userStatus } = req.body;
 
     // Validate user input
