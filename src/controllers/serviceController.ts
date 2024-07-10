@@ -19,7 +19,9 @@ const createService = async (
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "services", 0);
-    if (!permissionCheck) return;
+    if (!permissionCheck) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
 
     // Validate user input
     const errors = validationResult(req);
@@ -37,10 +39,14 @@ const createService = async (
     if (existingService) {
       throw new CustomError(400, "Service with this slug already exists");
     }
+
     let ogImage;
     if (openGraphImage) {
       // find OG_Image
       ogImage = await fetchImageByPublicId(openGraphImage);
+      if (!ogImage || !ogImage.resources || ogImage.resources.length === 0) {
+        throw new CustomError(400, "Invalid openGraphImage");
+      }
     }
 
     // Save service
@@ -49,14 +55,14 @@ const createService = async (
       canonicalLink:
         "https://adaired.com/services/" +
         slugify(canonicalLink, { lower: true }),
-      openGraphImage: ogImage.resources[0].secure_url,
+      openGraphImage: ogImage ? ogImage.resources[0].secure_url : undefined,
       slug: slugify(slug, { lower: true }),
     };
     const service = await Service.create(serviceData);
 
     // Update Parent Service if created service is a child service
     if (body.parentService) {
-      const parentService = await Service.findByIdAndUpdate(
+      await Service.findByIdAndUpdate(
         body.parentService,
         { $push: { childServices: { childServiceId: service._id } } },
         { new: true }
@@ -71,6 +77,7 @@ const createService = async (
     next(error);
   }
 };
+
 
 // ********** Read Services **********
 
