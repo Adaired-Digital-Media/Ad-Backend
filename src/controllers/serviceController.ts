@@ -127,7 +127,9 @@ const updateService = async (
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "services", 2);
-    if (!permissionCheck) return;
+    if (!permissionCheck) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
 
     // Validate user input
     const errors = validationResult(req);
@@ -153,6 +155,9 @@ const updateService = async (
     let ogImageUrl;
     if (body.openGraphImage) {
       const ogImage = await fetchImageByPublicId(body.openGraphImage);
+      if (!ogImage || !ogImage.resources || ogImage.resources.length === 0) {
+        throw new CustomError(400, "Invalid openGraphImage");
+      }
       ogImageUrl = ogImage.resources[0].secure_url;
     }
 
@@ -190,6 +195,7 @@ const updateService = async (
     next(error);
   }
 };
+
 
 // ********** Delete Service **********
 
