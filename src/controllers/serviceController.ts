@@ -4,6 +4,7 @@ import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
 import checkPermission from "../helpers/authHelper";
 import { validationResult } from "express-validator";
+import { fetchImageByPublicId } from "../utils/cloudinary";
 
 // ********** Create Service **********
 
@@ -14,7 +15,7 @@ const createService = async (
 ) => {
   try {
     const { userId, body } = req;
-    const { slug } = body;
+    const { slug, canonicalLink, openGraphImage } = body;
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "services", 0);
@@ -37,9 +38,16 @@ const createService = async (
       throw new CustomError(400, "Service with this slug already exists");
     }
 
+    // find OG_Image
+    const ogImage = await fetchImageByPublicId(openGraphImage);
+
     // Save service
     const serviceData = {
       ...body,
+      canonicalLink:
+        "https://adaired.com/services/" +
+        slugify(canonicalLink, { lower: true }),
+      openGraphImage: ogImage.resources[0].secure_url,
       slug: slugify(slug, { lower: true }),
     };
     const service = await Service.create(serviceData);
@@ -132,15 +140,34 @@ const updateService = async (
       }
     }
 
-    // Update service
-    const updatedService = await Service.findByIdAndUpdate(
-      id,
-      {
-        ...body,
-        slug: body.slug ? slugify(body.slug, { lower: true }) : undefined,
-      },
-      { new: true, runValidators: true }
+    // Fetch and update OG_Image if provided
+    let ogImageUrl;
+    if (body.openGraphImage) {
+      const ogImage = await fetchImageByPublicId(body.openGraphImage);
+      ogImageUrl = ogImage.resources[0].secure_url;
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      ...body,
+      slug: body.slug ? slugify(body.slug, { lower: true }) : undefined,
+      canonicalLink: body.canonicalLink
+        ? "https://adaired.com/services/" +
+          slugify(body.canonicalLink, { lower: true })
+        : undefined,
+      openGraphImage: ogImageUrl,
+    };
+
+    // Remove undefined fields from updateData
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
     );
+
+    // Update service
+    const updatedService = await Service.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedService) {
       return next(new CustomError(404, "Service not found!"));

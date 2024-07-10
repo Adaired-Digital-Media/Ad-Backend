@@ -35,7 +35,7 @@ export const uploadImages = async (
         .upload(file.path, {
           public_id: removeFileExtension(file.filename),
           resource_type: "auto",
-          folder: "uploads",
+          // folder: "uploads",
         })
         .then((result) => {
           // Generate delivery URL with transformations
@@ -68,11 +68,25 @@ export const uploadImages = async (
   }
 };
 
+// *********** Fetch Image By Public ID **********
+
+export const fetchImageByPublicId = async (public_id: string) => {
+  try {
+    const result = await cloudinary.search
+      .expression(`public_id:${public_id}`)
+      .execute();
+    return result;
+  } catch (error) {
+    console.error("Error fetching image by public ID:", error);
+    throw new CustomError(500, "Failed to fetch image by public ID");
+  }
+};
+
 // ********** Fetch All images from Cloudinary **********
-export const fetchImagesInFolder = async (folderName: string) => {
+export const fetchImagesInFolder = async () => {
   try {
     const { resources } = await cloudinary.search
-      .expression(`folder:${folderName}`)
+      .expression(`folder:""`)
       .sort_by("public_id", "asc")
       .execute();
 

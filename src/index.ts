@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error";
 import path from "path";
 import cors from "cors";
+import bodyParser from "body-parser";
 
 // Routers Import
 import multerRoute from "./routes/multerRoute";
@@ -21,6 +22,7 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 dotenv.config();
+app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());

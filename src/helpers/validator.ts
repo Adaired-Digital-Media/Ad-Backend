@@ -268,11 +268,8 @@ export const ValidateCreateService = [
     .isString()
     .trim()
     .escape(),
-  check("canonicalLink", "Canonical Link is required")
-    .isString()
-    .trim()
-    .escape(),
-  check("openGraphImage").optional().isString().trim().escape(),
+  check("canonicalLink", "Canonical Link is required").isString().trim(),
+  check("openGraphImage").optional().isString().trim(),
   check("robotsText").optional().isString().trim().escape(),
   check("focusKeyword", "Focus Keyword is required").isString().trim().escape(),
   check("serviceName", "Service Name is required").isString().trim().escape(),
@@ -309,14 +306,12 @@ export const ValidateUpdateService = [
     .withMessage("Canonical Link must be a string")
     .notEmpty()
     .withMessage("Canonical Link cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("openGraphImage")
     .optional()
     .isString()
     .withMessage("Open Graph Image must be a string")
-    .trim()
-    .escape(),
+    .trim(),
   check("robotsText")
     .optional()
     .isString()

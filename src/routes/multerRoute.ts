@@ -4,6 +4,7 @@ import fs from "fs";
 import { CustomError } from "../middlewares/error";
 import {
   deleteImage,
+  fetchImageByPublicId,
   fetchImagesInFolder,
   uploadImages,
 } from "../utils/cloudinary";
@@ -36,7 +37,7 @@ router.get(
   "/getUploadedMedia",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const results = await fetchImagesInFolder("uploads");
+      const results = await fetchImagesInFolder();
       res.status(200).json({
         message: "Files fetched successfully",
         data: results,
@@ -47,6 +48,21 @@ router.get(
   }
 );
 
+router.get(
+  "/getImageByPublicId/:public_id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { public_id } = req.params;
+    try {
+      const result = await fetchImageByPublicId(public_id);
+      res.status(200).json({
+        message: "Image fetched successfully",
+        data: result.resources[0],
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.delete(
   "/deleteFile/:public_id",
@@ -73,8 +89,6 @@ router.delete(
 );
 
 export default router;
-
-
 
 // // Endpoint to upload files
 // router.post(
