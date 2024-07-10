@@ -37,9 +37,11 @@ const createService = async (
     if (existingService) {
       throw new CustomError(400, "Service with this slug already exists");
     }
-
-    // find OG_Image
-    const ogImage = await fetchImageByPublicId(openGraphImage);
+    let ogImage;
+    if (openGraphImage) {
+      // find OG_Image
+      ogImage = await fetchImageByPublicId(openGraphImage);
+    }
 
     // Save service
     const serviceData = {
