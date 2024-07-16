@@ -8,7 +8,7 @@ const generateRandomAlphanumeric = (length: number): string => {
   ).join("");
 };
 
-const storage = multer.diskStorage({
+const storage = multer.diskStorage({ 
   destination: "src/static/uploads/",
   filename: (req, file, cb) => {
     const randomString = generateRandomAlphanumeric(5);

@@ -30,8 +30,8 @@ app.use(cookieParser());
 // CORS Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000", // specify the exact origin
-    credentials: true, // allow credentials
+    origin: true,
+    credentials: true,
   })
 );
 
@@ -61,7 +61,7 @@ app.get("/", (req: Request, res: Response) => {
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(process.env.PORT, () => {
+    app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {

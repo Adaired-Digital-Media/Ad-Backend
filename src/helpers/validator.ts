@@ -2,15 +2,14 @@ import { check, body } from "express-validator";
 
 // ********** User and Authentication ***********
 export const validateRegister = [
-  check("name", "Name is required").notEmpty().isString().trim().escape(),
+  check("name", "Name is required").notEmpty().isString().trim(),
   check("email", "Email is required")
     .isEmail()
     .withMessage("Please enter a valid email")
     .normalizeEmail({
       gmail_remove_dots: true,
     })
-    .trim()
-    .escape(),
+    .trim(),
   check("password", "Password is required")
     .isStrongPassword({
       minLength: 8,
@@ -34,15 +33,14 @@ export const validateLogin = [
     .normalizeEmail({
       gmail_remove_dots: true,
     })
-    .trim()
-    .escape(),
+    .trim(),
   check("password", "Password is required").notEmpty(),
   check("rememberMe").optional().isBoolean(),
 ];
 
 export const validateUpdate = [
   check("userId", "User ID is required"),
-  check("name", "Name is required").optional().isString().trim().escape(),
+  check("name", "Name is required").optional().isString().trim(),
   check("email", "Email is required")
     .optional()
     .isEmail()
@@ -50,8 +48,7 @@ export const validateUpdate = [
     .normalizeEmail({
       gmail_remove_dots: true,
     })
-    .trim()
-    .escape(),
+    .trim(),
   check("password", "Password is required")
     .optional()
     .isStrongPassword({
@@ -79,16 +76,11 @@ export const validateUserId = [
 
 // ********** Roles **********
 export const validateRole = [
-  check("roleName", "Role name is required")
-    .notEmpty()
-    .isString()
-    .trim()
-    .escape(),
+  check("roleName", "Role name is required").notEmpty().isString().trim(),
   check("roleDescription", "Role description is required")
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("roleStatus", "Role status is required").notEmpty().isBoolean(),
   check("rolePermissions", "Role permissions are required")
     .notEmpty()
@@ -105,14 +97,12 @@ export const validateUpdateRole = [
     .optional()
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("roleDescription", "Role description is required")
     .optional()
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("roleStatus", "Role status is required")
     .optional()
     .notEmpty()
@@ -134,56 +124,38 @@ export const validateRoleId = [
 // *********** Blogs and Blog Categories **********
 
 export const validateBlog = [
-  check("blogMetaTitle", "Meta title is required")
-    .notEmpty()
-    .isString()
-    .trim()
-    .escape(),
+  check("blogMetaTitle", "Meta title is required").notEmpty().isString().trim(),
   check("blogMetaDescription", "Meta description is required")
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("blogOGImage", "OG image is required").notEmpty().isString().trim(),
   check("blogCategory", "Category is required").notEmpty().isMongoId(),
   check("blogImage", "Image is required").notEmpty().isString().trim(),
   check("blogImageAlt", "Image alt is required").notEmpty().isString().trim(),
-  check("blogTitle", "Title is required").notEmpty().isString().trim().escape(),
-  check("blogContent", "Content is required")
-    .notEmpty()
-    .isString()
-    .trim()
-    .escape(),
+  check("blogTitle", "Title is required").notEmpty().isString().trim(),
+  check("blogContent", "Content is required").notEmpty().isString().trim(),
   check("blogTags").optional().isArray(),
-  check("blogSlug", "Slug is required").notEmpty().isString().trim().escape(),
+  check("blogSlug", "Slug is required").notEmpty().isString().trim(),
   check("blogAuthor").optional().isMongoId(),
   check("blogStatus").optional().isString(),
 ];
 
 export const validateUpdateBlog = [
   check("blogId", "Blog ID is required").notEmpty().isMongoId(),
-  check("blogMetaTitle", "Meta title is required")
-    .optional()
-    .isString()
-    .trim()
-    .escape(),
+  check("blogMetaTitle", "Meta title is required").optional().isString().trim(),
   check("blogMetaDescription", "Meta description is required")
     .optional()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("blogOGImage", "OG image is required").optional().isString().trim(),
   check("blogCategory", "Category is required").optional().isMongoId(),
   check("blogImage", "Image is required").optional().isString().trim(),
   check("blogImageAlt", "Image alt is required").optional().isString().trim(),
-  check("blogTitle", "Title is required").optional().isString().trim().escape(),
-  check("blogContent", "Content is required")
-    .optional()
-    .isString()
-    .trim()
-    .escape(),
+  check("blogTitle", "Title is required").optional().isString().trim(),
+  check("blogContent", "Content is required").optional().isString().trim(),
   check("blogTags").optional().isArray(),
-  check("blogSlug", "Slug is required").optional().isString().trim().escape(),
+  check("blogSlug", "Slug is required").optional().isString().trim(),
   check("blogAuthor").optional().isMongoId(),
 ];
 
@@ -206,14 +178,14 @@ export const validateBlogCategory = [
     .notEmpty()
     .isString()
     .trim()
-    .escape()
+
     .withMessage("Category name must be a string"),
 
   check("categorySlug", "Category slug is required")
     .notEmpty()
     .isString()
     .trim()
-    .escape()
+
     .withMessage("Category slug must be a string"),
 
   check("status")
@@ -243,14 +215,14 @@ export const validateUpdateBlogCategory = [
     .optional()
     .isString()
     .trim()
-    .escape()
+
     .withMessage("Category name must be a string"),
   check("categorySlug")
     .notEmpty()
     .optional()
     .isString()
     .trim()
-    .escape()
+
     .withMessage("Category slug must be a string"),
   check("status")
     .optional()
@@ -263,18 +235,15 @@ export const validateUpdateBlogCategory = [
 //  ********** Sevice Pages **********
 
 export const ValidateCreateService = [
-  check("metaTitle", "Meta Title is required").isString().trim().escape(),
-  check("metaDescription", "Meta Description is required")
-    .isString()
-    .trim()
-    .escape(),
+  check("metaTitle", "Meta Title is required").isString().trim(),
+  check("metaDescription", "Meta Description is required").isString().trim(),
   check("canonicalLink", "Canonical Link is required").isString().trim(),
   check("openGraphImage").optional().isString().trim(),
-  check("robotsText").optional().isString().trim().escape(),
-  check("focusKeyword", "Focus Keyword is required").isString().trim().escape(),
-  check("serviceName", "Service Name is required").isString().trim().escape(),
-  check("slug", "Slug is required").isString().trim().escape(),
-  check("colorScheme", "Color Scheme is requied").isString().trim().escape(),
+  check("robotsText").optional().isString().trim(),
+  check("focusKeyword", "Focus Keyword is required").isString().trim(),
+  check("serviceName", "Service Name is required").isString().trim(),
+  check("slug", "Slug is required").isString().trim(),
+  check("colorScheme", "Color Scheme is requied").isString().trim(),
   check("parentService").optional().isMongoId(),
   check("status", "Status is required").isIn(["publish", "draft"]),
   check("childServices").optional().isArray(),
@@ -290,16 +259,14 @@ export const ValidateUpdateService = [
     .withMessage("Meta Title must be a string")
     .notEmpty()
     .withMessage("Meta Title cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("metaDescription")
     .optional()
     .isString()
     .withMessage("Meta Description must be a string")
     .notEmpty()
     .withMessage("Meta Description cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("canonicalLink")
     .optional()
     .isString()
@@ -316,40 +283,35 @@ export const ValidateUpdateService = [
     .optional()
     .isString()
     .withMessage("Robots Text must be a string")
-    .trim()
-    .escape(),
+    .trim(),
   check("focusKeyword")
     .optional()
     .isString()
     .withMessage("Focus Keyword must be a string")
     .notEmpty()
     .withMessage("Focus Keyword cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("serviceName")
     .optional()
     .isString()
     .withMessage("Service Name must be a string")
     .notEmpty()
     .withMessage("Service Name cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("slug")
     .optional()
     .isString()
     .withMessage("Slug must be a string")
     .notEmpty()
     .withMessage("Slug cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("colorScheme", "Color Scheme is required")
     .optional()
     .isString()
     .withMessage("Color Scheme must be a string")
     .notEmpty()
     .withMessage("Color Scheme cannot be empty")
-    .trim()
-    .escape(),
+    .trim(),
   check("parentService")
     .optional()
     .isMongoId()
@@ -382,13 +344,11 @@ export const validateCaseStudyCategory = [
   check("categoryName", "Category name is required")
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("categorySlug", "Category slug is required")
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologies")
     .optional()
     .isArray()
@@ -400,8 +360,7 @@ export const validateCaseStudyCategory = [
     )
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologies.*.name", "Technology name is required")
     .if(
       (value, { req }) =>
@@ -409,8 +368,7 @@ export const validateCaseStudyCategory = [
     )
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("caseStudies")
     .optional()
     .isArray()
@@ -429,14 +387,12 @@ export const validateCaseStudyUpdateCategory = [
     .optional()
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("categorySlug", "Category slug is required")
     .optional()
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologies")
     .optional()
     .isArray()
@@ -449,8 +405,7 @@ export const validateCaseStudyUpdateCategory = [
     )
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologies.*.name", "Technology name is required")
     .optional()
     .if(
@@ -459,8 +414,7 @@ export const validateCaseStudyUpdateCategory = [
     )
     .notEmpty()
     .isString()
-    .trim()
-    .escape(),
+    .trim(),
   check("caseStudies")
     .optional()
     .isArray()
@@ -480,71 +434,50 @@ export const validateCaseStudy = [
   check("categorySlug", "Category Slug is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
-  check("colorScheme", "Color Scheme is required").notEmpty().trim().escape(),
-  check("cardImage", "Card Image is required").notEmpty().trim().escape(),
-  check("slug", "Slug is required").notEmpty().trim().escape(),
-  check("subHeading", "Sub Heading is required").notEmpty().trim().escape(),
-  check("caseStudyName", "Case Study Name is required")
-    .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
+  check("colorScheme", "Color Scheme is required").notEmpty().trim(),
+  check("cardImage", "Card Image is required").notEmpty().trim(),
+  check("slug", "Slug is required").notEmpty().trim(),
+  check("subHeading", "Sub Heading is required").notEmpty().trim(),
+  check("caseStudyName", "Case Study Name is required").notEmpty().trim(),
   check("caseStudyDescription", "Case Study Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
-  check("caseStudyImage", "Case Study Image is required")
-    .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
+  check("caseStudyImage", "Case Study Image is required").notEmpty().trim(),
   check("aboutProjectDescription", "About Project Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
-  check("challengesImage", "Challenges Image is required")
-    .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
+  check("challengesImage", "Challenges Image is required").notEmpty().trim(),
   check("challengesDescription", "Challenges Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
-  check("solutionsImage", "Solutions Image is required")
-    .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
+  check("solutionsImage", "Solutions Image is required").notEmpty().trim(),
   check("solutionsDescription", "Solutions Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "challengesAndSolutions.*.title",
     "Challenge and Solution Title is required"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "challengesAndSolutions.*.content",
     "Challenge and Solution Content is required"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologiesUsedTitle", "Technologies Used Title is required")
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "technologiesUsedDescription",
     "Technologies Used Description is required"
   )
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologiesUsed.*.id", "Technology ID is required")
     .optional()
     .notEmpty()
@@ -557,70 +490,55 @@ export const validateCaseStudy = [
     .optional()
     .notEmpty()
     .isMongoId(),
-  check("goalsTitle", "Goals Title is required").notEmpty().trim().escape(),
-  check("goalsDescription", "Goals Description is required")
-    .notEmpty()
-    .trim()
-    .escape(),
+  check("goalsTitle", "Goals Title is required").notEmpty().trim(),
+  check("goalsDescription", "Goals Description is required").notEmpty().trim(),
   check("objectives.*.title", "Objective Title is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("objectives.*.content", "Objective Content is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("stratergy.*.title", "Strategy Title is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("stratergy.*.content", "Strategy Content is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
-  check("goalImage", "Goal Image is required").notEmpty().trim().escape(),
+    .trim(),
+  check("goalImage", "Goal Image is required").notEmpty().trim(),
   check("growthBox.*.title", "Growth Box Title is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("growthBox.*.content", "Growth Box Content is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultDescription", "Result Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.title", "Result Box Title is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.percentage", "Result Box Percentage is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.description", "Result Box Description is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.icon", "Result Box Icon is required")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultFinalDescription", "Result Final Description is required")
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
 ];
 
 export const validateUpdateCaseStudy = [
@@ -630,182 +548,149 @@ export const validateUpdateCaseStudy = [
   check("categorySlug", "Category Slug must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("colorScheme", "Color Scheme must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("cardImage", "Card Image must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
-  check("slug", "Slug must not be empty").optional().notEmpty().trim().escape(),
+    .trim(),
+  check("slug", "Slug must not be empty").optional().notEmpty().trim(),
   check("subHeading", "Sub Heading must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("caseStudyName", "Case Study Name must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("caseStudyDescription", "Case Study Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("caseStudyImage", "Case Study Image must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "aboutProjectDescription",
     "About Project Description must not be empty"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("challengesImage", "Challenges Image must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("challengesDescription", "Challenges Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("solutionsImage", "Solutions Image must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("solutionsDescription", "Solutions Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "challengesAndSolutions.*.title",
     "Challenge and Solution Title must not be empty"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "challengesAndSolutions.*.content",
     "Challenge and Solution Content must not be empty"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologiesUsedTitle", "Technologies Used Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check(
     "technologiesUsedDescription",
     "Technologies Used Description must not be empty"
   )
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologiesUsed.*.id", "Technology ID must be a valid Mongo ID")
     .optional()
     .isMongoId(),
   check("technologiesUsed.*.icon", "Technology icon URL must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("technologiesUsed.*.name", "Technology name must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("goalsTitle", "Goals Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("goalsDescription", "Goals Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("objectives.*.title", "Objective Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("objectives.*.content", "Objective Content must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("stratergy.*.title", "Strategy Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("stratergy.*.content", "Strategy Content must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("goalImage", "Goal Image must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("growthBox.*.title", "Growth Box Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("growthBox.*.content", "Growth Box Content must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultDescription", "Result Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.title", "Result Box Title must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.percentage", "Result Box Percentage must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.description", "Result Box Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultBox.*.icon", "Result Box Icon must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
   check("resultFinalDescription", "Result Final Description must not be empty")
     .optional()
     .notEmpty()
-    .trim()
-    .escape(),
+    .trim(),
 ];

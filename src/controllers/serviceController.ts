@@ -15,7 +15,7 @@ const createService = async (
 ) => {
   try {
     const { userId, body } = req;
-    const { slug, canonicalLink, openGraphImage } = body;
+    const { slug, canonicalLink } = body;
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "services", 0);
@@ -40,22 +40,12 @@ const createService = async (
       throw new CustomError(400, "Service with this slug already exists");
     }
 
-    let ogImage;
-    if (openGraphImage) {
-      // find OG_Image
-      ogImage = await fetchImageByPublicId(openGraphImage);
-      if (!ogImage || !ogImage.resources || ogImage.resources.length === 0) {
-        throw new CustomError(400, "Invalid openGraphImage");
-      }
-    }
-
     // Save service
     const serviceData = {
       ...body,
       canonicalLink:
         "https://adaired.com/services/" +
         slugify(canonicalLink, { lower: true }),
-      openGraphImage: ogImage ? ogImage.resources[0].secure_url : undefined,
       slug: slugify(slug, { lower: true }),
     };
     const service = await Service.create(serviceData);
@@ -64,7 +54,15 @@ const createService = async (
     if (body.parentService) {
       await Service.findByIdAndUpdate(
         body.parentService,
-        { $push: { childServices: { childServiceId: service._id } } },
+        {
+          $push: {
+            childServices: {
+              childServiceId: service._id,
+              childServiceName: service.serviceName,
+              childServiceSlug: service.slug,
+            },
+          },
+        },
         { new: true }
       );
     }
@@ -77,7 +75,6 @@ const createService = async (
     next(error);
   }
 };
-
 
 // ********** Read Services **********
 
@@ -113,6 +110,77 @@ const readServices = async (
     return next(error);
   }
 };
+
+// // ********** Update Service **********
+
+// const updateService = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId, body } = req;
+//     const { id } = req.params;
+
+//     // Check Permission
+//     const permissionCheck = await checkPermission(userId, "services", 2);
+//     if (!permissionCheck) {
+//       return res.status(403).json({ message: "Permission denied" });
+//     }
+
+//     // Validate user input
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({
+//         message: "Invalid input",
+//         errors: errors.array(),
+//       });
+//     }
+
+//     // Check if Slug is already in use
+//     if (body.slug) {
+//       const existingService = await Service.findOne({
+//         slug: slugify(body.slug, { lower: true }),
+//         _id: { $ne: id }, // Exclude the current service from the check
+//       });
+//       if (existingService) {
+//         throw new CustomError(400, "Service with this slug already exists");
+//       }
+//     }
+
+//     // Prepare update data
+//     const updateData: any = {
+//       ...body,
+//       slug: body.slug ? slugify(body.slug, { lower: true }) : undefined,
+//       canonicalLink: body.canonicalLink
+//         ? "https://adaired.com/services/" +
+//           slugify(body.canonicalLink, { lower: true })
+//         : undefined,
+//     };
+
+//     // Remove undefined fields from updateData
+//     Object.keys(updateData).forEach(
+//       (key) => updateData[key] === undefined && delete updateData[key]
+//     );
+
+//     // Update service
+//     const updatedService = await Service.findByIdAndUpdate(id, updateData, {
+//       new: true,
+//       runValidators: true,
+//     });
+
+//     if (!updatedService) {
+//       return next(new CustomError(404, "Service not found!"));
+//     }
+
+//     res.status(200).json({
+//       message: "Service updated successfully",
+//       data: updatedService,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 // ********** Update Service **********
 
@@ -151,16 +219,6 @@ const updateService = async (
       }
     }
 
-    // Fetch and update OG_Image if provided
-    let ogImageUrl;
-    if (body.openGraphImage) {
-      const ogImage = await fetchImageByPublicId(body.openGraphImage);
-      if (!ogImage || !ogImage.resources || ogImage.resources.length === 0) {
-        throw new CustomError(400, "Invalid openGraphImage");
-      }
-      ogImageUrl = ogImage.resources[0].secure_url;
-    }
-
     // Prepare update data
     const updateData: any = {
       ...body,
@@ -169,13 +227,45 @@ const updateService = async (
         ? "https://adaired.com/services/" +
           slugify(body.canonicalLink, { lower: true })
         : undefined,
-      openGraphImage: ogImageUrl,
     };
 
     // Remove undefined fields from updateData
     Object.keys(updateData).forEach(
       (key) => updateData[key] === undefined && delete updateData[key]
     );
+
+    // Find the current service
+    const currentService = await Service.findById(id);
+    if (!currentService) {
+      return next(new CustomError(404, "Service not found!"));
+    }
+
+    // Update parent service if changed
+    if (body.parentService && body.parentService !== currentService.parentService) {
+      // Remove from old parent
+      if (currentService.parentService) {
+        await Service.findByIdAndUpdate(
+          currentService.parentService,
+          { $pull: { childServices: { childServiceId: id } } },
+          { new: true }
+        );
+      }
+
+      // Add to new parent
+      await Service.findByIdAndUpdate(
+        body.parentService,
+        {
+          $push: {
+            childServices: {
+              childServiceId: id,
+              childServiceName: body.serviceName || currentService.serviceName,
+              childServiceSlug: body.slug ? slugify(body.slug, { lower: true }) : currentService.slug,
+            },
+          },
+        },
+        { new: true }
+      );
+    }
 
     // Update service
     const updatedService = await Service.findByIdAndUpdate(id, updateData, {
@@ -195,7 +285,6 @@ const updateService = async (
     next(error);
   }
 };
-
 
 // ********** Delete Service **********
 
@@ -237,3 +326,119 @@ const deleteService = async (
 };
 
 export { createService, readServices, updateService, deleteService };
+
+
+
+
+// import Service from "../models/serviceModel";
+// import { NextFunction, Request, Response } from "express";
+// import { CustomError } from "../middlewares/error";
+// import slugify from "slugify";
+// import checkPermission from "../helpers/authHelper";
+// import { validationResult } from "express-validator";
+
+// // ********** Update Service **********
+
+// const updateService = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId, body } = req;
+//     const { id } = req.params;
+
+//     // Check Permission
+//     const permissionCheck = await checkPermission(userId, "services", 2);
+//     if (!permissionCheck) {
+//       return res.status(403).json({ message: "Permission denied" });
+//     }
+
+//     // Validate user input
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({
+//         message: "Invalid input",
+//         errors: errors.array(),
+//       });
+//     }
+
+//     // Check if Slug is already in use
+//     if (body.slug) {
+//       const existingService = await Service.findOne({
+//         slug: slugify(body.slug, { lower: true }),
+//         _id: { $ne: id }, // Exclude the current service from the check
+//       });
+//       if (existingService) {
+//         throw new CustomError(400, "Service with this slug already exists");
+//       }
+//     }
+
+//     // Prepare update data
+//     const updateData: any = {
+//       ...body,
+//       slug: body.slug ? slugify(body.slug, { lower: true }) : undefined,
+//       canonicalLink: body.canonicalLink
+//         ? "https://adaired.com/services/" +
+//           slugify(body.canonicalLink, { lower: true })
+//         : undefined,
+//     };
+
+//     // Remove undefined fields from updateData
+//     Object.keys(updateData).forEach(
+//       (key) => updateData[key] === undefined && delete updateData[key]
+//     );
+
+//     // Find the current service
+//     const currentService = await Service.findById(id);
+//     if (!currentService) {
+//       return next(new CustomError(404, "Service not found!"));
+//     }
+
+//     // Update parent service if changed
+//     if (body.parentService && body.parentService !== currentService.parentService) {
+//       // Remove from old parent
+//       if (currentService.parentService) {
+//         await Service.findByIdAndUpdate(
+//           currentService.parentService,
+//           { $pull: { childServices: { childServiceId: id } } },
+//           { new: true }
+//         );
+//       }
+
+//       // Add to new parent
+//       await Service.findByIdAndUpdate(
+//         body.parentService,
+//         {
+//           $push: {
+//             childServices: {
+//               childServiceId: id,
+//               childServiceName: body.serviceName || currentService.serviceName,
+//               childServiceSlug: body.slug ? slugify(body.slug, { lower: true }) : currentService.slug,
+//             },
+//           },
+//         },
+//         { new: true }
+//       );
+//     }
+
+//     // Update service
+//     const updatedService = await Service.findByIdAndUpdate(id, updateData, {
+//       new: true,
+//       runValidators: true,
+//     });
+
+//     if (!updatedService) {
+//       return next(new CustomError(404, "Service not found!"));
+//     }
+
+//     res.status(200).json({
+//       message: "Service updated successfully",
+//       data: updatedService,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// export { updateService };
