@@ -85,10 +85,20 @@ export const fetchImageByPublicId = async (public_id: string) => {
 // ********** Fetch All images from Cloudinary **********
 export const fetchImagesInFolder = async () => {
   try {
-    const { resources } = await cloudinary.search
-      .expression(`folder:""`)
-      .sort_by("public_id", "asc")
-      .execute();
+    let resources: any[] = [];
+    let nextCursor: string | undefined = undefined;
+
+    do {
+      const { resources: batch, next_cursor } = await cloudinary.search
+        .expression(`folder:""`)
+        .sort_by("public_id", "asc")
+        .max_results(50) // Limit batch size
+        .next_cursor(nextCursor)
+        .execute();
+
+      resources = resources.concat(batch);
+      nextCursor = next_cursor;
+    } while (nextCursor);
 
     return resources;
   } catch (error) {
@@ -96,6 +106,20 @@ export const fetchImagesInFolder = async () => {
     throw new CustomError(500, "Failed to fetch images from Cloudinary");
   }
 };
+
+// export const fetchImagesInFolder = async () => {
+//   try {
+//     const { resources } = await cloudinary.search
+//       .expression(`folder:""`)
+//       .sort_by("public_id", "asc")
+//       .execute();
+
+//     return resources;
+//   } catch (error) {
+//     console.error("Error fetching images from Cloudinary:", error);
+//     throw new CustomError(500, "Failed to fetch images from Cloudinary");
+//   }
+// };
 
 // ********** Delete image from Cloudinary **********
 export const deleteImage = async (public_id: string) => {
