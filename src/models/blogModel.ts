@@ -3,53 +3,56 @@ import { BlogTypes } from "../types/blogTypes";
 
 const blogSchema = new Schema(
   {
-    blogMetaTitle: {
+    metaTitle: {
       type: String,
       required: true,
     },
-    blogMetaDescription: {
+    metaDescription: {
       type: String,
       required: true,
     },
-    blogOGImage: {
+    canonicalLink: {
       type: String,
       required: true,
     },
-    blogCategory: {
+    openGraphImage: {
+      type: String,
+      required: true,
+    },
+    robotsText: {
+      type: String,
+      required: true,
+    },
+    category: {
       type: Schema.Types.ObjectId,
       ref: "BlogCategory",
       default: null,
     },
-    blogImage: {
+    featuredImage: {
       type: String,
       required: true,
     },
-    blogImageAlt: {
+    postTitle: {
       type: String,
       required: true,
     },
-    blogTitle: {
+    postDescription: {
       type: String,
       required: true,
     },
-    blogContent: {
+    slug: {
       type: String,
       required: true,
     },
-    blogTags: {
-      type: [String],
-      default: [],
-    },
-    blogSlug: {
+    tags: {
       type: String,
-      required: true,
     },
     blogAuthor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    blogStatus: {
+    status: {
       type: String,
       enum: ["publish", "draft"],
       default: "draft",
@@ -63,3 +66,38 @@ const blogSchema = new Schema(
 const Blog = mongoose.model<BlogTypes>("Blog", blogSchema);
 
 export default Blog;
+
+// // ********** Delete Blog **********
+// const deleteBlog = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { userId, params } = req;
+//     const { blogId } = params;
+
+//     // Check permissions
+//     const permissionCheck = await checkPermission(userId, "blogs", 3);
+//     if (!permissionCheck) return res.status(403).json({ message: "Permission denied" });
+
+//     // Check if blog exists and delete it
+//     const blog = await Blog.findByIdAndDelete(blogId);
+//     if (!blog) {
+//       throw new CustomError(404, "Blog not found");
+//     }
+
+//     // Remove blog from its category if a category is assigned
+//     if (blog.category) {
+//       await BlogCategory.findByIdAndUpdate(
+//         blog.category,
+//         {
+//           $pull: { blogs: blog._id },
+//         },
+//         { new: true }
+//       );
+//     }
+
+//     res.status(200).json({
+//       message: "Blog deleted successfully",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };

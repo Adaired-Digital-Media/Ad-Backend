@@ -124,39 +124,72 @@ export const validateRoleId = [
 // *********** Blogs and Blog Categories **********
 
 export const validateBlog = [
-  check("blogMetaTitle", "Meta title is required").notEmpty().isString().trim(),
-  check("blogMetaDescription", "Meta description is required")
+  check("metaTitle", "Meta title is required").notEmpty().isString().trim(),
+  check("metaDescription", "Meta description is required")
     .notEmpty()
     .isString()
     .trim(),
-  check("blogOGImage", "OG image is required").notEmpty().isString().trim(),
-  check("blogCategory", "Category is required").notEmpty().isMongoId(),
-  check("blogImage", "Image is required").notEmpty().isString().trim(),
-  check("blogImageAlt", "Image alt is required").notEmpty().isString().trim(),
-  check("blogTitle", "Title is required").notEmpty().isString().trim(),
-  check("blogContent", "Content is required").notEmpty().isString().trim(),
-  check("blogTags").optional().isArray(),
-  check("blogSlug", "Slug is required").notEmpty().isString().trim(),
+  check("canonicalLink", "Canonical link is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("openGraphImage", "Open Graph image is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("robotsText", "Robots text is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("category", "Category is required").optional().isMongoId(),
+  check("featuredImage", "Featured image is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("postTitle", "Post title is required").notEmpty().isString().trim(),
+  check("postDescription", "Post description is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("slug", "Slug is required").notEmpty().isString().trim(),
+  check("tags").optional().isString().trim(),
   check("blogAuthor").optional().isMongoId(),
-  check("blogStatus").optional().isString(),
+  check("status").optional().isString().isIn(["publish", "draft"]),
 ];
 
 export const validateUpdateBlog = [
   check("blogId", "Blog ID is required").notEmpty().isMongoId(),
-  check("blogMetaTitle", "Meta title is required").optional().isString().trim(),
-  check("blogMetaDescription", "Meta description is required")
+  check("metaTitle", "Meta title is required").optional().isString().trim(),
+  check("metaDescription", "Meta description is required")
     .optional()
     .isString()
     .trim(),
-  check("blogOGImage", "OG image is required").optional().isString().trim(),
-  check("blogCategory", "Category is required").optional().isMongoId(),
-  check("blogImage", "Image is required").optional().isString().trim(),
-  check("blogImageAlt", "Image alt is required").optional().isString().trim(),
-  check("blogTitle", "Title is required").optional().isString().trim(),
-  check("blogContent", "Content is required").optional().isString().trim(),
-  check("blogTags").optional().isArray(),
-  check("blogSlug", "Slug is required").optional().isString().trim(),
+  check("canonicalLink", "Canonical link is required")
+    .optional()
+    .isString()
+    .trim(),
+  check("openGraphImage", "Open Graph image is required")
+    .optional()
+    .isString()
+    .trim(),
+  check("robotsText", "Robots text is required")
+    .optional()
+    .isString()
+    .trim(),
+  check("category", "Category is required").optional().isMongoId(),
+  check("featuredImage", "Featured image is required")
+    .optional()
+    .isString()
+    .trim(),
+  check("postTitle", "Post title is required").optional().isString().trim(),
+  check("postDescription", "Post description is required")
+    .optional()
+    .isString()
+    .trim(),
+  check("slug", "Slug is required").optional().isString().trim(),
+  check("tags").optional().isString().trim(),
   check("blogAuthor").optional().isMongoId(),
+  check("status").optional().isString().isIn(["publish", "draft"]),
 ];
 
 export const validateBlogCategory = [

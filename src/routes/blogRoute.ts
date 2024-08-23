@@ -5,7 +5,7 @@ import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
 router.post("/createBlog", verifyToken, validateBlog, newBlog);
-router.get("/readBlog/:blogId?",readBlog)
+router.get("/readBlog/:identifier?", readBlog);
 router.put("/updateBlog/:blogId", verifyToken, validateUpdateBlog, updateBlog);
 router.delete("/deleteBlog/:blogId", verifyToken, validateUpdateBlog, deleteBlog);
 

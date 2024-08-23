@@ -1,14 +1,15 @@
 export type BlogTypes = {
-  blogMetaTitle: string;
-  blogMetaDescription: string;
-  blogOGImage: string;
-  blogCategory: string;
-  blogImage: string;
-  blogImageAlt: string;
-  blogTitle: string;
-  blogContent: string;
-  blogTags: string[];
-  blogSlug: string;
-  blogAuthor: string;
-  blogStatus: string;
+  metaTitle: string;
+  metaDescription: string;
+  canonicalLink: string;
+  openGraphImage: string;
+  robotsText: string;
+  category: string | null;
+  featuredImage: string;
+  postTitle: string;
+  postDescription: string;
+  slug: string;
+  tags?: string;
+  blogAuthor?: string | null;
+  status?: "publish" | "draft";
 };
