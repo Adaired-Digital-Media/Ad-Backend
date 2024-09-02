@@ -20,7 +20,6 @@ router.post(
   createService
 );
 router.get("/getServices/:identifier?", readServices);
-// router.get("/getServices", readServices);
 router.put(
   "/updateService/:id",
   verifyToken,

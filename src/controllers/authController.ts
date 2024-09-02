@@ -148,10 +148,14 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       ? parseInt(process.env.COOKIE_MAX_AGE_REMEMBER_ME || "0", 10)
       : parseInt(process.env.COOKIE_MAX_AGE_DEFAULT || "0", 10);
 
+    // Determine environment
+    const isProduction = process.env.NODE_ENV === "production";
+
     res.cookie("ad_access", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production", // Use secure cookies in production
       maxAge: cookieMaxAge,
+      sameSite: isProduction? "none" : "lax", // Use 'None' for production
     });
 
     // Respond with success
@@ -169,7 +173,7 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
 const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     res
-      .clearCookie("ad_access", { sameSite: "none", secure: true })
+      .clearCookie("ad_access", { secure: true })
       .status(200)
       .json("User logged out successfully!");
   } catch (error) {
@@ -184,6 +188,9 @@ const currentUser = async (req: Request, res: Response, next: NextFunction) => {
     const decoded = jwt.verify(ad_access, process.env.JWT_SECRET as string);
     const id = (decoded as JwtPayload)._id;
     const user = await User.findOne({ _id: id });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
     const userData = await User.aggregate([
       {
         $match: {

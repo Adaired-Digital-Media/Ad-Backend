@@ -20,7 +20,10 @@ const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     req.userId = (decoded as JwtPayload)._id;
     next();
   } catch (error) {
-    next(error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new CustomError(401, "Invalid token."));
+    }
+    return next(new CustomError(500, "Internal server error."));
   }
 };
 

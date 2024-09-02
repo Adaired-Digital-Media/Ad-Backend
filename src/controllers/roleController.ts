@@ -77,9 +77,11 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
     const { roleId } = req.params;
     const { roleName, rolePermissions, ...updateData } = req.body;
 
+    // Check if the user has the required permission to update the role
     const permissionCheck = await checkPermission(req.userId, "roles", 2);
-    if (!permissionCheck) return;
+    if (!permissionCheck) return res.status(403).json({ message: "Access denied" });
 
+    // Validate the request data
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -88,12 +90,13 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    // Check role name availability
+    // Check if the role name is available (ignore the current role's name)
     if (roleName) {
       const existingRole = await Role.findOne({
-        roleName: { $regex: roleName, $options: "i", $ne: roleName },
-        _id: { $ne: roleId },
+        roleName: { $regex: new RegExp(`^${roleName}$`, "i") }, // Case-insensitive exact match
+        _id: { $ne: roleId }, // Exclude the current role
       });
+
       if (existingRole) {
         throw new CustomError(400, "Role with this name already exists");
       }
@@ -101,6 +104,8 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
 
     // Prepare update operations
     const updateOperations = [];
+
+    // Update role data if any fields other than rolePermissions are provided
     if (Object.keys(updateData).length > 0) {
       updateOperations.push({
         updateOne: {
@@ -110,6 +115,7 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
+    // Update rolePermissions if provided
     if (rolePermissions) {
       updateOperations.push({
         updateOne: {
@@ -119,7 +125,17 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    // Execute bulk write operation
+    // Update roleName if provided
+    if (roleName) {
+      updateOperations.push({
+        updateOne: {
+          filter: { _id: roleId },
+          update: { $set: { roleName } },
+        },
+      });
+    }
+
+    // Execute bulk write operation if there are updates to be made
     if (updateOperations.length > 0) {
       await Role.bulkWrite(updateOperations);
     }
