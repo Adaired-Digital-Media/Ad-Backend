@@ -5,20 +5,16 @@ import {
   login,
   logout,
   currentUser,
+  refreshToken,
 } from "../controllers/authController";
 import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
-// Register route
 router.post("/register", validateRegister, register);
-
-// Login route
 router.post("/login", validateLogin, login);
-
-// Logout route
-router.get("/logout", verifyToken, logout);
-
-// Current User route
-router.get("/refetch", verifyToken, currentUser);
+router.post("/refresh-token", refreshToken);
+router.post("/logout", verifyToken, logout);
+router.get("/current-user", verifyToken, currentUser);
 
 export default router;
+

@@ -1,6 +1,6 @@
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "./error";
-import jwt, { JwtPayload } from "jsonwebtoken";
 
 declare global {
   namespace Express {
@@ -10,20 +10,24 @@ declare global {
   }
 }
 
-const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-  const ad_access = req.cookies.ad_access;
-  if (!ad_access) {
-    throw new CustomError(401, "You are not authenticated!");
+const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({
+      message: "No token provided",
+    });
   }
+
   try {
-    const decoded = jwt.verify(ad_access, process.env.JWT_SECRET as string);
-    req.userId = (decoded as JwtPayload)._id;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as JwtPayload;
+    req.userId = decoded._id;
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return next(new CustomError(401, "Invalid token."));
-    }
-    return next(new CustomError(500, "Internal server error."));
+    throw new CustomError(401, "Invalid or expired token");
   }
 };
 

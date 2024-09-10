@@ -25,6 +25,7 @@ export const validateRegister = [
     .notEmpty()
     .isMobilePhone("any")
     .withMessage("Contact must be a valid phone number"),
+  check("userStatus").optional(),
 ];
 
 export const validateLogin = [
@@ -137,10 +138,7 @@ export const validateBlog = [
     .notEmpty()
     .isString()
     .trim(),
-  check("robotsText", "Robots text is required")
-    .notEmpty()
-    .isString()
-    .trim(),
+  check("robotsText", "Robots text is required").notEmpty().isString().trim(),
   check("category", "Category is required").optional().isMongoId(),
   check("featuredImage", "Featured image is required")
     .notEmpty()
@@ -172,10 +170,7 @@ export const validateUpdateBlog = [
     .optional()
     .isString()
     .trim(),
-  check("robotsText", "Robots text is required")
-    .optional()
-    .isString()
-    .trim(),
+  check("robotsText", "Robots text is required").optional().isString().trim(),
   check("category", "Category is required").optional().isMongoId(),
   check("featuredImage", "Featured image is required")
     .optional()

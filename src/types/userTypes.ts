@@ -9,4 +9,5 @@ export type UserTypes = {
   cart: { product: string; quantity: number }[];
   orders: string[];
   userStatus: boolean;
+  refreshToken?: string; // Add refreshToken property
 };

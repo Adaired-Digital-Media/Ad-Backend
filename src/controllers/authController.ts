@@ -5,6 +5,21 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
 
+// Function to generate access token
+const generateAccessToken = (userId: string, expiresIn: string) => {
+  return jwt.sign({ _id: userId }, process.env.JWT_SECRET as string, {
+    expiresIn, // Short-lived token
+  });
+};
+
+// Function to generate refresh token
+const generateRefreshToken = (userId: string, expiresIn: string) => {
+  return jwt.sign({ _id: userId }, process.env.JWT_REFRESH_SECRET as string, {
+    expiresIn, // Long-lived token
+  });
+};
+
+// Register Endpoint
 const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, email, password, contact, userStatus } = req.body;
@@ -12,7 +27,6 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     // Validate user input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log("Validation errors:", errors.array());
       return res.status(400).json({
         message: "Invalid input",
         errors: errors.array(),
@@ -47,17 +61,20 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       await user.save();
     }
 
-    // Generate Token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id.toString(), "1h");
+    const refreshToken = generateRefreshToken(user._id.toString(), "7d");
+
+    // Store refresh token in the database
+    user.refreshToken = refreshToken;
+    await user.save();
 
     res.status(201).json({
-      ad_access: token,
+      accessToken,
+      refreshToken,
       user,
     });
   } catch (error) {
-    console.error("Error during registration:", error);
     next(error);
   }
 };
@@ -75,6 +92,7 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
         errors: errors.array(),
       });
     }
+
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
@@ -84,22 +102,26 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     // Check if password is correct
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      throw new CustomError(401, "Invalid Credentials");
+      throw new CustomError(401, "Invalid password");
     }
 
-    // Determine token expiry based on rememberMe
-    const jwtExpire = rememberMe
-      ? process.env.JWT_EXPIRE_REMEMBER_ME
-      : process.env.JWT_EXPIRE_DEFAULT;
+    // Set token expiration based on rememberMe
+    const accessTokenExpire = "1h"; // Short-lived
+    const refreshTokenExpire = rememberMe ? "30d" : "7d"; // Longer if rememberMe is true
 
-    // Generate Token
-    const token = jwt.sign(
-      { _id: user._id },
-      process.env.JWT_SECRET as string,
-      {
-        expiresIn: jwtExpire,
-      }
+    // Generate tokens
+    const accessToken = generateAccessToken(
+      user._id.toString(),
+      accessTokenExpire
     );
+    const refreshToken = generateRefreshToken(
+      user._id.toString(),
+      refreshTokenExpire
+    );
+
+    // Store refresh token in the database
+    user.refreshToken = refreshToken;
+    await user.save();
 
     // Get User Data With Role and Permissions
     const userData = await User.aggregate([
@@ -143,26 +165,52 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       },
     ]);
 
-    // Set token in a cookie
-    const cookieMaxAge = rememberMe
-      ? parseInt(process.env.COOKIE_MAX_AGE_REMEMBER_ME || "0", 10)
-      : parseInt(process.env.COOKIE_MAX_AGE_DEFAULT || "0", 10);
-
-    // Determine environment
-    const isProduction = process.env.NODE_ENV === "production";
-
-    res.cookie("ad_access", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-      maxAge: cookieMaxAge,
-      sameSite: isProduction? "none" : "lax", // Use 'None' for production
-    });
-
-    // Respond with success
     res.status(200).json({
       message: "Login successful",
-      ad_access: token,
+      accessToken,
+      refreshToken,
       userData: userData[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Refresh Token Endpoint
+const refreshToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      throw new CustomError(401, "No token provided");
+    }
+
+    // Verify the refresh token
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET as string
+    ) as JwtPayload;
+
+    const user = await User.findById(decoded._id);
+    if (!user || user.refreshToken !== refreshToken) {
+      throw new CustomError(401, "Invalid refresh token");
+    }
+
+    // Generate new tokens
+    const newAccessToken = generateAccessToken(user._id.toString(), "1h");
+    const newRefreshToken = generateRefreshToken(user._id.toString(), "7d");
+
+    // Update the refresh token in the database
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     });
   } catch (error) {
     next(error);
@@ -172,10 +220,15 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
 // Logout Endpoint
 const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res
-      .clearCookie("ad_access", { secure: true })
-      .status(200)
-      .json("User logged out successfully!");
+    const { userId } = req;
+
+    const user = await User.findById(userId);
+    if (user) {
+      user.refreshToken = null; // Clear refresh token
+      await user.save();
+    }
+
+    res.status(200).json("User logged out successfully!");
   } catch (error) {
     next(error);
   }
@@ -183,11 +236,9 @@ const logout = async (req: Request, res: Response, next: NextFunction) => {
 
 // Fetch Current User Details
 const currentUser = async (req: Request, res: Response, next: NextFunction) => {
-  const ad_access = req.cookies.ad_access;
+  const { userId } = req;
   try {
-    const decoded = jwt.verify(ad_access, process.env.JWT_SECRET as string);
-    const id = (decoded as JwtPayload)._id;
-    const user = await User.findOne({ _id: id });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -231,10 +282,10 @@ const currentUser = async (req: Request, res: Response, next: NextFunction) => {
         },
       },
     ]);
-    res.status(200).json(userData);
+    res.status(200).json(userData[0]);
   } catch (error) {
     next(error);
   }
 };
 
-export { register, login, logout, currentUser };
+export { register, login, logout, currentUser, refreshToken };

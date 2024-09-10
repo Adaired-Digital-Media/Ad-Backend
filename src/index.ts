@@ -28,23 +28,32 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // CORS Middleware
+const allowedOrigin =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://adaired-admin-dashboard.vercel.app";
+
 app.use(
   cors({
-    origin: true,
+    origin: allowedOrigin,
     credentials: true,
   })
 );
 
-// Routes Middleware
-app.use("/api/v2/multer", multerRoute);
-app.use("/api/v2/auth", authRoute);
-app.use("/api/v2/user", userRoute);
-app.use("/api/v2/role", roleRoute);
-app.use("/api/v2/blog", blogRoute);
-app.use("/api/v2/blog/category", blogCategoryRoute);
-app.use("/api/v2/case-study", caseStudyRoute);
-app.use("/api/v2/case-study/category", caseStudyCategoryRoute);
-app.use("/api/v2/service", serviceRoute);
+// Prefix all routes with /ts-test
+const basePath = "/api/v2";
+
+// Use basePath for all routes
+app.use(`${basePath}/multer`, multerRoute);
+app.use(`${basePath}/auth`, authRoute);
+app.use(`${basePath}/user`, userRoute);
+app.use(`${basePath}/role`, roleRoute);
+app.use(`${basePath}/blog`, blogRoute);
+app.use(`${basePath}/blog/category`, blogCategoryRoute);
+app.use(`${basePath}/case-study`, caseStudyRoute);
+app.use(`${basePath}/case-study/category`, caseStudyCategoryRoute);
+app.use(`${basePath}/service`, serviceRoute);
+
 
 // Error Handler
 app.use(errorHandler);
