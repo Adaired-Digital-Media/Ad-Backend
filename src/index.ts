@@ -1,11 +1,9 @@
 import express, { Application, Request, Response } from "express";
 import dotenv from "dotenv";
 import connectDB from "./database/connectDB";
-import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error";
 import path from "path";
 import cors from "cors";
-import bodyParser from "body-parser";
 
 // Routers Import
 import multerRoute from "./routes/multerRoute";
@@ -22,25 +20,13 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 dotenv.config();
-app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
 
 // CORS Middleware
-const allowedOrigin =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://adaired-admin-dashboard.vercel.app";
+app.use(cors());
 
-app.use(
-  cors({
-    origin: allowedOrigin,
-    credentials: true,
-  })
-);
-
-// Prefix all routes with /ts-test
+// Prefix all routes with /backend/api/v2
 const basePath = "/api/v2";
 
 // Use basePath for all routes
@@ -53,7 +39,6 @@ app.use(`${basePath}/blog/category`, blogCategoryRoute);
 app.use(`${basePath}/case-study`, caseStudyRoute);
 app.use(`${basePath}/case-study/category`, caseStudyCategoryRoute);
 app.use(`${basePath}/service`, serviceRoute);
-
 
 // Error Handler
 app.use(errorHandler);
