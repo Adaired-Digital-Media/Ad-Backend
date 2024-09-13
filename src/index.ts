@@ -24,7 +24,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
-app.use(cors());
+const allowedOrigins = ['http://localhost:3000', 'http://another-origin.com'];
+const corsOptions = {
+  origin: (origin: any, callback: any) => {
+    if (allowedOrigins.includes(origin) || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+};
+app.use(cors(corsOptions));
 
 // Prefix all routes with /backend/api/v2
 const basePath = "/api/v2";

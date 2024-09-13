@@ -91,8 +91,8 @@ export const fetchImagesInFolder = async () => {
     do {
       const { resources: batch, next_cursor } = await cloudinary.search
         .expression(`folder:""`)
-        .sort_by("public_id", "asc")
-        .max_results(50) // Limit batch size
+        .sort_by("created_at", "desc") // Sort by newest to oldest
+        .max_results(1000) // Limit batch size
         .next_cursor(nextCursor)
         .execute();
 
