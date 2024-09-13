@@ -84,6 +84,12 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, rememberMe = false } = req.body;
 
+    console.log({
+      email: email,
+      password: password,
+      rememberMe: rememberMe,
+    });
+
     // Validate user input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -93,11 +99,15 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
+    console.log("User input validation succeeded");
+
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
       throw new CustomError(400, "User not found");
     }
+
+    console.log("User Found : ", user);
 
     // Check if password is correct
     const isMatch = await bcrypt.compare(password, user.password);
@@ -105,9 +115,13 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       throw new CustomError(401, "Invalid password");
     }
 
+    console.log("Password Match : ", isMatch);
+
     // Set token expiration based on rememberMe
     const accessTokenExpire = "1h"; // Short-lived
     const refreshTokenExpire = rememberMe ? "30d" : "7d"; // Longer if rememberMe is true
+
+    console.log("UserId : ", user._id.toString());
 
     // Generate tokens
     const accessToken = generateAccessToken(
@@ -118,6 +132,8 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       user._id.toString(),
       refreshTokenExpire
     );
+
+    console.log("Tokens generated : ", accessToken, refreshToken);
 
     // Store refresh token in the database
     user.refreshToken = refreshToken;
@@ -164,6 +180,8 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
         },
       },
     ]);
+
+    console.log("Final result : " + JSON.stringify(userData));
 
     res.status(200).json({
       message: "Login successful",
