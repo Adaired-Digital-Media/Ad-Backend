@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
-const allowedOrigins = ['http://localhost:3000', 'https://adaired-admin-dashboard.vercel.app/'];
+const allowedOrigins = ['http://localhost:3001', 'https://adaired-admin-dashboard.vercel.app/'];
 const corsOptions = {
   origin: (origin: any, callback: any) => {
     if (allowedOrigins.includes(origin) || !origin) {

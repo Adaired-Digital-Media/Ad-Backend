@@ -63,7 +63,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id.toString(), "1h");
-    const refreshToken = generateRefreshToken(user._id.toString(), "7d");
+    const refreshToken = generateRefreshToken(user._id.toString(), "1d");
 
     // Store refresh token in the database
     user.refreshToken = refreshToken;
@@ -80,15 +80,118 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Login Endpoint
+// const login = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { email, password, rememberMe = false } = req.body;
+
+//     console.log({
+//       email: email,
+//       password: password,
+//       rememberMe: rememberMe,
+//     });
+
+//     // Validate user input
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({
+//         message: "Invalid input",
+//         errors: errors.array(),
+//       });
+//     }
+
+//     console.log("User input validation succeeded");
+
+//     // Check if user exists
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       throw new CustomError(400, "User not found");
+//     }
+
+//     console.log("User Found : ", user);
+
+//     // Check if password is correct
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       throw new CustomError(401, "Invalid password");
+//     }
+
+//     console.log("Password Match : ", isMatch);
+
+//     // Set token expiration based on rememberMe
+//     const accessTokenExpire = "1h";
+//     const refreshTokenExpire = rememberMe ? "30d" : "1d";
+
+//     // Generate tokens
+//     const accessToken = generateAccessToken(
+//       user._id.toString(),
+//       accessTokenExpire
+//     );
+
+//     const refreshToken = generateRefreshToken(
+//       user._id.toString(),
+//       refreshTokenExpire
+//     );
+
+//     // Store refresh token in the database
+//     user.refreshToken = refreshToken;
+//     await user.save();
+
+//     // Get User Data With Role and Permissions
+//     const userData = await User.aggregate([
+//       {
+//         $match: {
+//           email: user.email,
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "roles",
+//           localField: "role",
+//           foreignField: "_id",
+//           as: "role",
+//         },
+//       },
+//       {
+//         $project: {
+//           _id: 1,
+//           name: 1,
+//           email: 1,
+//           userName: 1,
+//           contact: 1,
+//           userStatus: 1,
+//           isAdmin: 1,
+//           role: {
+//             $cond: {
+//               if: { $isArray: "$role" },
+//               then: { $arrayElemAt: ["$role", 0] },
+//               else: null,
+//             },
+//           },
+//         },
+//       },
+//       {
+//         $addFields: {
+//           role: {
+//             role: "$role.role",
+//           },
+//         },
+//       },
+//     ]);
+
+//     res.status(200).json({
+//       message: "Login successful",
+//       accessToken,
+//       refreshToken,
+//       userData: userData[0],
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, rememberMe = false } = req.body;
-
-    console.log({
-      email: email,
-      password: password,
-      rememberMe: rememberMe,
-    });
 
     // Validate user input
     const errors = validationResult(req);
@@ -99,15 +202,11 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    console.log("User input validation succeeded");
-
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
       throw new CustomError(400, "User not found");
     }
-
-    console.log("User Found : ", user);
 
     // Check if password is correct
     const isMatch = await bcrypt.compare(password, user.password);
@@ -115,29 +214,47 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       throw new CustomError(401, "Invalid password");
     }
 
-    console.log("Password Match : ", isMatch);
-
     // Set token expiration based on rememberMe
-    const accessTokenExpire = "1h"; // Short-lived
-    const refreshTokenExpire = rememberMe ? "30d" : "7d"; // Longer if rememberMe is true
+    const accessTokenExpire = "1h"; // Access token expiration time
+    const refreshTokenExpire = rememberMe ? "30d" : "1d"; // Refresh token expiration
 
-    console.log("UserId : ", user._id.toString());
+    // Generate access token
+    let accessToken;
+    let refreshToken = user.refreshToken;
 
-    // Generate tokens
-    const accessToken = generateAccessToken(
-      user._id.toString(),
-      accessTokenExpire
-    );
-    const refreshToken = generateRefreshToken(
-      user._id.toString(),
-      refreshTokenExpire
-    );
+    // If refresh token exists, verify it and use it to generate a new access token
+    if (refreshToken) {
+      try {
+        jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string);
 
-    console.log("Tokens generated : ", accessToken, refreshToken);
-
-    // Store refresh token in the database
-    user.refreshToken = refreshToken;
-    await user.save();
+        // If verification succeeds, generate a new access token
+        accessToken = generateAccessToken(
+          user._id.toString(),
+          accessTokenExpire
+        );
+      } catch (error) {
+        // If refresh token is invalid, generate new tokens
+        accessToken = generateAccessToken(
+          user._id.toString(),
+          accessTokenExpire
+        );
+        refreshToken = generateRefreshToken(
+          user._id.toString(),
+          refreshTokenExpire
+        );
+        user.refreshToken = refreshToken;
+        await user.save();
+      }
+    } else {
+      // If no refresh token exists, generate new tokens
+      accessToken = generateAccessToken(user._id.toString(), accessTokenExpire);
+      refreshToken = generateRefreshToken(
+        user._id.toString(),
+        refreshTokenExpire
+      );
+      user.refreshToken = refreshToken;
+      await user.save();
+    }
 
     // Get User Data With Role and Permissions
     const userData = await User.aggregate([
@@ -180,8 +297,6 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
         },
       },
     ]);
-
-    console.log("Final result : " + JSON.stringify(userData));
 
     res.status(200).json({
       message: "Login successful",
