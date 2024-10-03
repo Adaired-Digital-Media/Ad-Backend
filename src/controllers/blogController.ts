@@ -5,13 +5,12 @@ import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
 import checkPermission from "../helpers/authHelper";
 import slugify from "slugify";
-import mongoose from "mongoose";
 
 // ********** Create Blog ***********
 const newBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, body } = req;
-    const { slug, category } = body;
+    const { postTitle, slug, category } = body;
 
     // Check permissions
     const permissionCheck = await checkPermission(userId, "blogs", 0);
@@ -26,10 +25,13 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
+    // Determine the slug
+    const finalSlug = slug
+      ? slugify(slug, { lower: true })
+      : slugify(postTitle, { lower: true });
+
     // Check if blogSlug is already in use
-    const existingBlog = await Blog.findOne({
-      slug: slugify(slug, { lower: true }),
-    });
+    const existingBlog = await Blog.findOne({ slug: finalSlug });
     if (existingBlog) {
       throw new CustomError(400, "Blog with this slug already exists");
     }
@@ -38,12 +40,12 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
     const newBlogData = {
       ...body,
       blogAuthor: userId,
-      slug: slugify(slug, { lower: true }),
+      slug: finalSlug,
     };
     const newBlog = await Blog.create(newBlogData);
 
     // Update blog category
-    const blogCategoryData = await BlogCategory.findByIdAndUpdate(
+    await BlogCategory.findByIdAndUpdate(
       category,
       {
         $push: { blogs: { blogId: newBlog._id } },
@@ -61,125 +63,6 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 // ********** Read Blog *********
-// const readBlog = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { blogId } = req.params;
-
-//     let blog;
-
-//     if (blogId) {
-//       const objectId = new mongoose.Types.ObjectId(blogId);
-
-//       blog = await Blog.aggregate([
-//         { $match: { _id: objectId } },
-//         {
-//           $lookup: {
-//             from: "blogcategories",
-//             localField: "category",
-//             foreignField: "_id",
-//             as: "category",
-//           },
-//         },
-//         { $unwind: "$category" },
-//         {
-//           $lookup: {
-//             from: "users",
-//             localField: "blogAuthor",
-//             foreignField: "_id",
-//             as: "blogAuthor",
-//           },
-//         },
-//         { $unwind: "$blogAuthor" },
-//         {
-//           $project: {
-//             _id: 1,
-//             metaTitle: 1,
-//             metaDescription: 1,
-//             canonicalLink: 1,
-//             openGraphImage: 1,
-//             robotsText: 1,
-//             category: {
-//               _id: 1,
-//               categoryName: 1,
-//               categorySlug: 1,
-//             },
-//             featuredImage: 1,
-//             postTitle: 1,
-//             postDescription: 1,
-//             slug: 1,
-//             tags: 1,
-//             blogAuthor: {
-//               _id: 1,
-//               name: 1,
-//               email: 1,
-//             },
-//             status: 1,
-//             createdAt: 1,
-//             updatedAt: 1,
-//           },
-//         },
-//       ]);
-
-//       if (!blog.length) {
-//         throw new CustomError(404, "Blog not found");
-//       }
-//     } else {
-//       blog = await Blog.aggregate([
-//         {
-//           $lookup: {
-//             from: "blogcategories",
-//             localField: "category",
-//             foreignField: "_id",
-//             as: "category",
-//           },
-//         },
-//         { $unwind: "$blogCategory" },
-//         {
-//           $lookup: {
-//             from: "users",
-//             localField: "blogAuthor",
-//             foreignField: "_id",
-//             as: "blogAuthor",
-//           },
-//         },
-//         { $unwind: "$blogAuthor" },
-//         {
-//           $project: {
-//             _id: 1,
-//             metaTitle: 1,
-//             metaDescription: 1,
-//             canonicalLink: 1,
-//             openGraphImage: 1,
-//             robotsText: 1,
-//             category: {
-//               _id: 1,
-//               categoryName: 1,
-//               categorySlug: 1,
-//             },
-//             featuredImage: 1,
-//             postTitle: 1,
-//             postDescription: 1,
-//             slug: 1,
-//             tags: 1,
-//             blogAuthor: {
-//               _id: 1,
-//               name: 1,
-//               email: 1,
-//             },
-//             status: 1,
-//             createdAt: 1,
-//             updatedAt: 1,
-//           },
-//         },
-//       ]);
-//     }
-
-//     res.status(200).json(blog);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 const readBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { identifier } = req.params;
@@ -213,13 +96,14 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// ********** Update a blog **********
+// ********** Update a blog **********  
 const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, params, body } = req;
     const { blogId } = params;
+    const { postTitle, slug } = body;
 
-    const { ...updateData } = body;
+    const updateData = { ...body };
 
     // Check permissions
     const permissionCheck = await checkPermission(userId, "blogs", 2);
@@ -241,17 +125,19 @@ const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
       throw new CustomError(404, "Blog not found");
     }
 
-    // Combine checking if slug exists and update blog
-    if (updateData.slug) {
-      const slug = slugify(updateData.slug, { lower: true });
+    // Determine the slug
+    if (!slug) {
+      updateData.slug = slugify(postTitle, { lower: true });
+    } else {
+      const newSlug = slugify(slug, { lower: true });
       const existingBlog = await Blog.findOne({
-        slug: slug,
+        slug: newSlug,
         _id: { $ne: blogId },
       });
       if (existingBlog) {
         throw new CustomError(400, "Blog with this slug already exists");
       }
-      updateData.slug = slug; // Update slug in updateData
+      updateData.slug = newSlug;
     }
 
     // Use update operators for efficiency

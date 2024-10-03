@@ -31,7 +31,7 @@ const updateUser = async (req: Request, res: Response, next: NextFunction) => {
     });
 
     res.status(200).json({
-      message: "Role updated successfully",
+      message: "User updated successfully",
       data: updatedUser,
     });
   } catch (error) {

@@ -24,17 +24,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
-const allowedOrigins = ['http://localhost:3001', 'https://adaired-admin-dashboard.vercel.app/'];
+const allowedOrigins = [
+  "https://adaired-admin-dashboard.vercel.app",
+  "http://localhost:3001",
+];
+
 const corsOptions = {
-  origin: (origin: any, callback: any) => {
-    if (allowedOrigins.includes(origin) || !origin) {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (allowedOrigins.includes(origin as string) || !origin) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error("Not allowed by CORS"));
     }
   },
+  credentials: true, // Allow credentials (cookies)
 };
-app.use(cors(corsOptions));
+
+app.use(cors(corsOptions)); // Apply CORS middleware globally
+
 
 // Prefix all routes with /backend/api/v2
 const basePath = "/api/v2";

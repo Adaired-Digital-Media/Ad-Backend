@@ -134,12 +134,18 @@ export const validateBlog = [
     .notEmpty()
     .isString()
     .trim(),
-  check("openGraphImage", "Open Graph image is required")
+  check("openGraphImage").optional().isString().trim(),
+  check("robotsText", "Robots text is required")
     .notEmpty()
     .isString()
-    .trim(),
-  check("robotsText", "Robots text is required").notEmpty().isString().trim(),
-  check("category", "Category is required").optional().isMongoId(),
+    .trim()
+    .custom((value) => {
+      if (!value.includes("index") || !value.includes("follow")) {
+        throw new Error("Robots text must include 'index' and 'follow'");
+      }
+      return true;
+    }),
+  check("category").optional().isMongoId(),
   check("featuredImage", "Featured image is required")
     .notEmpty()
     .isString()
@@ -149,10 +155,14 @@ export const validateBlog = [
     .notEmpty()
     .isString()
     .trim(),
-  check("slug", "Slug is required").notEmpty().isString().trim(),
+  check("slug").optional().isString().trim(),
   check("tags").optional().isString().trim(),
   check("blogAuthor").optional().isMongoId(),
-  check("status").optional().isString().isIn(["publish", "draft"]),
+  check("status")
+    .optional()
+    .isString()
+    .isIn(["publish", "draft"])
+    .withMessage("Status must be either 'publish' or 'draft'"),
 ];
 
 export const validateUpdateBlog = [

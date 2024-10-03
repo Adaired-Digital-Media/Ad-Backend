@@ -17,7 +17,7 @@ const blogSchema = new Schema(
     },
     openGraphImage: {
       type: String,
-      required: true,
+      default: null,
     },
     robotsText: {
       type: String,
@@ -42,10 +42,11 @@ const blogSchema = new Schema(
     },
     slug: {
       type: String,
-      required: true,
+      default: null,
     },
     tags: {
       type: String,
+      default: null,
     },
     blogAuthor: {
       type: mongoose.Schema.Types.ObjectId,
@@ -66,38 +67,3 @@ const blogSchema = new Schema(
 const Blog = mongoose.model<BlogTypes>("Blog", blogSchema);
 
 export default Blog;
-
-// // ********** Delete Blog **********
-// const deleteBlog = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { userId, params } = req;
-//     const { blogId } = params;
-
-//     // Check permissions
-//     const permissionCheck = await checkPermission(userId, "blogs", 3);
-//     if (!permissionCheck) return res.status(403).json({ message: "Permission denied" });
-
-//     // Check if blog exists and delete it
-//     const blog = await Blog.findByIdAndDelete(blogId);
-//     if (!blog) {
-//       throw new CustomError(404, "Blog not found");
-//     }
-
-//     // Remove blog from its category if a category is assigned
-//     if (blog.category) {
-//       await BlogCategory.findByIdAndUpdate(
-//         blog.category,
-//         {
-//           $pull: { blogs: blog._id },
-//         },
-//         { new: true }
-//       );
-//     }
-
-//     res.status(200).json({
-//       message: "Blog deleted successfully",
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };

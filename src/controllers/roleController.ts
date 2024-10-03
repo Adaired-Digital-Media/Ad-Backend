@@ -153,7 +153,6 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 // ********** Delete Role ***********
-
 const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { roleId } = req.params;
