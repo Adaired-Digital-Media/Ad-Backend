@@ -1,4 +1,5 @@
 export type BlogTypes = {
+  _id?: string;
   metaTitle: string;
   metaDescription: string;
   canonicalLink: string;

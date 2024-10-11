@@ -3,6 +3,7 @@ import {
   newBlogCategory,
   readCategories,
   updateBlogCategory,
+  duplicateCategory
 } from "../controllers/blogCategoryController";
 import express, { Router } from "express";
 import {
@@ -26,4 +27,5 @@ router.put(
   updateBlogCategory
 );
 router.delete("/deleteCategory/:categoryId", verifyToken, deleteBlogCategory);
+router.post("/duplicateCategory/:categoryId", verifyToken, duplicateCategory);
 export default router;

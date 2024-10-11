@@ -1,19 +1,23 @@
 import { Types } from "mongoose";
 
 export type ServiceTypes = {
+  _id?: Types.ObjectId;
   metaTitle: string;
   metaDescription: string;
   canonicalLink: string;
-  openGraphImage?: string; // Optional
-  robotsText?: string; // Optional, with a default value
+  openGraphImage?: string;
+  robotsText?: string;
   focusKeyword: string;
+  bodyScript?: string;
+  headerScript?: string;
+  footerScript?: string;
   serviceName: string;
   slug: string;
   colorScheme: string;
-  parentService?: Types.ObjectId | null; // ObjectId or null
+  parentService?: Types.ObjectId | null;
   status: "publish" | "draft";
   childServices: Array<{
     childServiceId: Types.ObjectId;
-  }>; // Array of objects with childServiceId
-  bodyData: Array<Record<string, any>>; // Array of objects with any shape
+  }>;
+  bodyData: Array<Record<string, any>>;
 };

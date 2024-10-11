@@ -4,6 +4,7 @@ import {
   deleteService,
   readServices,
   updateService,
+  duplicateService
 } from "../controllers/serviceController";
 import verifyToken from "../middlewares/authMiddleware";
 import {
@@ -27,5 +28,6 @@ router.put(
   updateService
 );
 router.delete("/deleteService/:id", verifyToken, deleteService);
+router.post("/duplicateService/:id", verifyToken, duplicateService);
 
 export default router;

@@ -106,8 +106,8 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Set token expiration based on rememberMe
-    const accessTokenExpire = "1h"; // Access token expiration time
-    const refreshTokenExpire = rememberMe ? "30d" : "1d"; // Refresh token expiration
+    const accessTokenExpire = "1h";
+    const refreshTokenExpire = rememberMe ? "30d" : "1d";
 
     // Generate access token
     let accessToken;

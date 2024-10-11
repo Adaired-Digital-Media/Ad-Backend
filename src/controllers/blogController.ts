@@ -1,4 +1,5 @@
 import Blog from "../models/blogModel";
+import { BlogTypes } from "../types/blogTypes";
 import BlogCategory from "../models/blogCategoryModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
@@ -96,7 +97,7 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// ********** Update a blog **********  
+// ********** Update a blog **********
 const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, params, body } = req;
@@ -192,4 +193,57 @@ const deleteBlog = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { newBlog, readBlog, updateBlog, deleteBlog };
+// ********** Duplicate Blog **********
+const duplicateBlog = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId, params } = req;
+    const { blogId } = params;
+
+    // Check permissions
+    const permissionCheck = await checkPermission(userId, "blogs", 0);
+    if (!permissionCheck)
+      return res.status(403).json({ message: "Permission denied" });
+
+    // Find the blog to duplicate
+    const existingBlog = await Blog.findById(blogId);
+    if (!existingBlog) {
+      throw new CustomError(404, "Blog not found");
+    }
+
+    // Prepare data for new blog
+    const newBlogData: BlogTypes = {
+      ...existingBlog.toObject(),
+      _id: undefined,
+      postTitle: existingBlog.postTitle + "- Copy",
+      slug: slugify(existingBlog.postTitle + "-copy", { lower: true }),
+      blogAuthor: userId,
+    };
+
+    // Create new blog
+    const newBlog = await Blog.create(newBlogData);
+
+    // Update blog category if needed
+    if (existingBlog.category) {
+      await BlogCategory.findByIdAndUpdate(
+        existingBlog.category,
+        {
+          $push: { blogs: { blogId: newBlog._id } },
+        },
+        { new: true }
+      );
+    }
+
+    res.status(201).json({
+      message: "Blog duplicated successfully",
+      newBlog,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { newBlog, readBlog, updateBlog, deleteBlog, duplicateBlog };

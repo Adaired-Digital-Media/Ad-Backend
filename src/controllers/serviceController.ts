@@ -4,7 +4,7 @@ import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
 import checkPermission from "../helpers/authHelper";
 import { validationResult } from "express-validator";
-import { fetchImageByPublicId } from "../utils/cloudinary";
+import { ServiceTypes } from "../types/serviceTypes";
 
 // ********** Create Service **********
 
@@ -44,7 +44,7 @@ const createService = async (
     const serviceData = {
       ...body,
       canonicalLink:
-        "https://adaired.com/services/" +
+        "https://www.adaired.com/services/" +
         slugify(canonicalLink, { lower: true }),
       slug: slugify(slug, { lower: true }),
     };
@@ -111,7 +111,6 @@ const readServices = async (
   }
 };
 
-
 // ********** Update Service **********
 
 const updateService = async (
@@ -154,7 +153,7 @@ const updateService = async (
       ...body,
       slug: body.slug ? slugify(body.slug, { lower: true }) : undefined,
       canonicalLink: body.canonicalLink
-        ? "https://adaired.com/services/" +
+        ? "https://www.adaired.com/services/" +
           slugify(body.canonicalLink, { lower: true })
         : undefined,
     };
@@ -171,7 +170,10 @@ const updateService = async (
     }
 
     // Update parent service if changed
-    if (body.parentService && body.parentService !== currentService.parentService) {
+    if (
+      body.parentService &&
+      body.parentService !== currentService.parentService
+    ) {
       // Remove from old parent
       if (currentService.parentService) {
         await Service.findByIdAndUpdate(
@@ -189,7 +191,9 @@ const updateService = async (
             childServices: {
               childServiceId: id,
               childServiceName: body.serviceName || currentService.serviceName,
-              childServiceSlug: body.slug ? slugify(body.slug, { lower: true }) : currentService.slug,
+              childServiceSlug: body.slug
+                ? slugify(body.slug, { lower: true })
+                : currentService.slug,
             },
           },
         },
@@ -255,6 +259,73 @@ const deleteService = async (
   }
 };
 
-export { createService, readServices, updateService, deleteService };
+// ********** Duplicate Service **********
 
+const duplicateService = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+    const { id } = req.params;
 
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "services", 1);
+    if (!permissionCheck) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    // Find the existing service
+    const existingService = await Service.findById(id);
+    if (!existingService) {
+      return next(new CustomError(404, "Service not found!"));
+    }
+
+    // Prepare new service data
+    const duplicateData: ServiceTypes = {
+      ...existingService.toObject(),
+      _id: undefined,
+      slug: `${existingService.slug}-copy`,
+      canonicalLink: `https://www.adaired.com/services/${slugify(
+        `${existingService.serviceName}-copy`,
+        { lower: true }
+      )}`,
+    };
+
+    // Create the duplicate service
+    const duplicatedService = await Service.create(duplicateData);
+
+    // If the service has a parent, add to parent's child services
+    if (existingService.parentService) {
+      await Service.findByIdAndUpdate(
+        existingService.parentService,
+        {
+          $push: {
+            childServices: {
+              childServiceId: duplicatedService._id,
+              childServiceName: duplicatedService.serviceName,
+              childServiceSlug: duplicatedService.slug,
+            },
+          },
+        },
+        { new: true }
+      );
+    }
+
+    res.status(201).json({
+      message: "Service duplicated successfully",
+      data: duplicatedService,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export {
+  createService,
+  readServices,
+  updateService,
+  deleteService,
+  duplicateService,
+};

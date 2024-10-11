@@ -273,9 +273,54 @@ const deleteBlogCategory = async (
   }
 };
 
+// ********** Duplicate Category **********
+const duplicateCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId, params } = req;
+    const { categoryId } = params;
+
+    // Check permissions
+    const permissionCheck = await checkPermission(userId, "blogCategories", 3);
+    if (!permissionCheck) return;
+
+    const category = await BlogCategory.findById(categoryId);
+    if (!category) {
+      throw new CustomError(404, "Category not found");
+    }
+
+    const duplicateCategory = await BlogCategory.create({
+      categoryName: category.categoryName + " (Copy)",
+      categorySlug: slugify(category.categoryName + " (Copy)", { lower: true }),
+      parentCategory: category.parentCategory,
+      status: category.status,
+    });
+
+    // Update parent's subcategories
+    if (category.parentCategory) {
+      await BlogCategory.findByIdAndUpdate(
+        category.parentCategory,
+        { $push: { subcategories: { _id: duplicateCategory._id } } },
+        { new: true }
+      );
+    }
+
+    res.status(201).json({
+      message: "Category duplicated successfully",
+      data: duplicateCategory,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   newBlogCategory,
   readCategories,
   updateBlogCategory,
   deleteBlogCategory,
+  duplicateCategory,
 };
