@@ -49,6 +49,29 @@ router.get(
 );
 
 router.get(
+  "/getSvgMedia",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Fetch all images in the folder
+      const results = await fetchImagesInFolder();
+
+      // Filter for SVG images only
+      const svgImages = results.filter(
+        (image: { format: string }) => image.format === "svg"
+      );
+
+      res.status(200).json({
+        message: "SVG images fetched successfully",
+        data: svgImages,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+router.get(
   "/getImageByPublicId/:public_id",
   async (req: Request, res: Response, next: NextFunction) => {
     const { public_id } = req.params;
@@ -89,44 +112,3 @@ router.delete(
 );
 
 export default router;
-
-// // Endpoint to upload files
-// router.post(
-//   "/upload",
-//   verifyToken,
-//   upload.array("files"),
-//   (req: Request, res: Response) => {
-//     console.log(req.files);
-//     res.send("File uploaded successfully!");
-//   }
-// );
-
-// // Endpoint to fetch files
-// router.get("/files", async (req: Request, res: Response) => {
-//   try {
-//     const uploadsPath = path.join(__dirname, "..", "static", "uploads");
-//     const files = await fs.promises.readdir(uploadsPath);
-//     res.json({
-//       files: files,
-//     });
-//     // res.send(files);
-//   } catch (error) {
-//     console.error("Error fetching files:", error);
-//     throw new CustomError(500, "Error fetching files");
-//   }
-// });
-
-// // Endpoint to delete files
-// router.delete("/deleteFile", async (req: Request, res: Response) => {
-//   const { fileName } = req.body;
-//   try {
-//     const uploadsPath = path.join(__dirname, "..", "static", "uploads");
-//     await fs.promises.unlink(path.join(uploadsPath, fileName));
-//     res.json({
-//       message: "File deleted successfully",
-//     });
-//   } catch (error) {
-//     console.error("Error deleting file:", error);
-//     throw new CustomError(500, "Error deleting file");
-//   }
-// });

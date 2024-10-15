@@ -107,20 +107,6 @@ export const fetchImagesInFolder = async () => {
   }
 };
 
-// export const fetchImagesInFolder = async () => {
-//   try {
-//     const { resources } = await cloudinary.search
-//       .expression(`folder:""`)
-//       .sort_by("public_id", "asc")
-//       .execute();
-
-//     return resources;
-//   } catch (error) {
-//     console.error("Error fetching images from Cloudinary:", error);
-//     throw new CustomError(500, "Failed to fetch images from Cloudinary");
-//   }
-// };
-
 // ********** Delete image from Cloudinary **********
 export const deleteImage = async (public_id: string) => {
   try {
@@ -133,3 +119,6 @@ export const deleteImage = async (public_id: string) => {
     throw new CustomError(500, `Failed to delete image: ${error}`);
   }
 };
+
+// ********** Edit image name from Cloudinary **********
+
