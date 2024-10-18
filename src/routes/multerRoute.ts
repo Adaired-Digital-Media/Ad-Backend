@@ -1,12 +1,12 @@
 import express, { Router, Request, Response, NextFunction } from "express";
 import { upload } from "../middlewares/multerMiddleware";
-import fs from "fs";
 import { CustomError } from "../middlewares/error";
 import {
   deleteImage,
   fetchImageByPublicId,
   fetchImagesInFolder,
   uploadImages,
+  editImageInfo, // Import the editImageInfo function
 } from "../utils/cloudinary";
 
 const router: Router = express.Router();
@@ -33,11 +33,18 @@ router.post(
   }
 );
 
+// Route to get uploaded media
 router.get(
   "/getUploadedMedia",
   async (req: Request, res: Response, next: NextFunction) => {
+    const { page = 1, limit = 100, fileType = "all" } = req.query; // Extract fileType from query
     try {
-      const results = await fetchImagesInFolder();
+      // Ensure page and limit are numbers and handle invalid inputs
+      const pageNumber = Number(page);
+      const limitNumber = Number(limit);
+
+      // Call the fetchImagesInFolder function with the new fileType parameter
+      const results = await fetchImagesInFolder(pageNumber, limitNumber, fileType as "svg" | "non-svg" | "all");
       res.status(200).json({
         message: "Files fetched successfully",
         data: results,
@@ -48,29 +55,8 @@ router.get(
   }
 );
 
-router.get(
-  "/getSvgMedia",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // Fetch all images in the folder
-      const results = await fetchImagesInFolder();
 
-      // Filter for SVG images only
-      const svgImages = results.filter(
-        (image: { format: string }) => image.format === "svg"
-      );
-
-      res.status(200).json({
-        message: "SVG images fetched successfully",
-        data: svgImages,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-
+// Route to get image by public ID
 router.get(
   "/getImageByPublicId/:public_id",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -87,17 +73,14 @@ router.get(
   }
 );
 
+// Route to delete file by public ID
 router.delete(
   "/deleteFile/:public_id",
   async (req: Request, res: Response, next: NextFunction) => {
     const { public_id } = req.params;
-    console.log(public_id);
-
     try {
-      // Delete the image from Cloudinary
       const result = await deleteImage(public_id);
 
-      // Check if deletion was successful
       if (result.result === "ok") {
         res.json({
           message: "Image deleted successfully",
@@ -106,7 +89,26 @@ router.delete(
         throw new CustomError(500, "Failed to delete image from Cloudinary");
       }
     } catch (error) {
-      next(error); // Pass the error to the error handling middleware
+      next(error);
+    }
+  }
+);
+
+// Route to edit image metadata
+router.put(
+  "/editImage/:public_id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { public_id } = req.params;
+    const { title, description } = req.body;
+
+    try {
+      const result = await editImageInfo(public_id, title, description);
+      res.status(200).json({
+        message: "Image metadata updated successfully",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 );

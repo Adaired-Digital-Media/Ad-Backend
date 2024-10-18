@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
 const allowedOrigins = [
-  "https://adaired-admin-dashboard.vercel.app",
+  "https://dashboard-adaired.vercel.app",
   "http://localhost:3001",
 ];
 
