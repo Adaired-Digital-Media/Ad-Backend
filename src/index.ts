@@ -15,6 +15,10 @@ import blogCategoryRoute from "./routes/blogCategoryRoute";
 import caseStudyRoute from "./routes/caseStudyRoute";
 import caseStudyCategoryRoute from "./routes/caseStudyCategoryRoute";
 import serviceRoute from "./routes/serviceRoute";
+import productRoute from "./routes/productRoute";
+import productCategoryRoute from "./routes/productCategoryRoute";
+import cartRoute from "./routes/cartRoute";
+import orderRoute from "./routes/orderRoute";
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -26,27 +30,31 @@ app.use(express.urlencoded({ extended: false }));
 // CORS Middleware
 const allowedOrigins = [
   "https://dashboard-adaired.vercel.app",
+  "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:3003",
+  "http://localhost:3004",
 ];
 
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
     if (allowedOrigins.includes(origin as string) || !origin) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true, // Allow credentials (cookies)
+  credentials: true,
 };
 
-app.use(cors(corsOptions)); // Apply CORS middleware globally
+app.use(cors(corsOptions));
 
-
-// Prefix all routes with /backend/api/v2
 const basePath = "/api/v2";
 
-// Use basePath for all routes
 app.use(`${basePath}/multer`, multerRoute);
 app.use(`${basePath}/auth`, authRoute);
 app.use(`${basePath}/user`, userRoute);
@@ -56,6 +64,10 @@ app.use(`${basePath}/blog/category`, blogCategoryRoute);
 app.use(`${basePath}/case-study`, caseStudyRoute);
 app.use(`${basePath}/case-study/category`, caseStudyCategoryRoute);
 app.use(`${basePath}/service`, serviceRoute);
+app.use(`${basePath}/product`, productRoute);
+app.use(`${basePath}/product/category`, productCategoryRoute);
+app.use(`${basePath}/cart`, cartRoute);
+app.use(`${basePath}/order`, orderRoute);
 
 // Error Handler
 app.use(errorHandler);

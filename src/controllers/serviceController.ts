@@ -286,6 +286,7 @@ const duplicateService = async (
     const duplicateData: ServiceTypes = {
       ...existingService.toObject(),
       _id: undefined,
+      serviceName: `${existingService.serviceName}-copy`,
       slug: `${existingService.slug}-copy`,
       canonicalLink: `https://www.adaired.com/services/${slugify(
         `${existingService.serviceName}-copy`,

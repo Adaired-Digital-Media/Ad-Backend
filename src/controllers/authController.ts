@@ -62,8 +62,8 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), "1h");
-    const refreshToken = generateRefreshToken(user._id.toString(), "1d");
+    const accessToken = generateAccessToken(user._id.toString(), "30d");
+    const refreshToken = generateRefreshToken(user._id.toString(), "30d");
 
     // Store refresh token in the database
     user.refreshToken = refreshToken;
@@ -106,8 +106,8 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Set token expiration based on rememberMe
-    const accessTokenExpire = "1h";
-    const refreshTokenExpire = rememberMe ? "30d" : "1d";
+    const accessTokenExpire = "30d";
+    const refreshTokenExpire = "30d";
 
     // Generate access token
     let accessToken;
@@ -225,8 +225,8 @@ const refreshToken = async (
     }
 
     // Generate new tokens
-    const newAccessToken = generateAccessToken(user._id.toString(), "1h");
-    const newRefreshToken = generateRefreshToken(user._id.toString(), "7d");
+    const newAccessToken = generateAccessToken(user._id.toString(), "30d");
+    const newRefreshToken = generateRefreshToken(user._id.toString(), "30d");
 
     // Update the refresh token in the database
     user.refreshToken = newRefreshToken;

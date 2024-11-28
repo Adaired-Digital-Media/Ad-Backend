@@ -1,4 +1,5 @@
-import { check, body } from "express-validator";
+import mongoose from "mongoose";
+import { check, body, param } from "express-validator";
 
 // ********** User and Authentication ***********
 export const validateRegister = [
@@ -731,4 +732,353 @@ export const validateUpdateCaseStudy = [
     .optional()
     .notEmpty()
     .trim(),
+];
+
+// ************** Products *********************
+export const validateCreateProduct = [
+  check("featuredImage")
+    .isString()
+    .withMessage("Featured image URL is required")
+    .notEmpty()
+    .withMessage("Featured image URL should not be empty"),
+
+  check("name")
+    .isString()
+    .withMessage("Product name is required")
+    .notEmpty()
+    .withMessage("Product name should not be empty"),
+
+  check("description")
+    .isString()
+    .withMessage("Description is required")
+    .notEmpty()
+    .withMessage("Description should not be empty"),
+
+  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
+
+  check("formId").optional().isMongoId().withMessage("Invalid form ID format"),
+
+  check("category")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid category ID format"),
+
+  check("subCategory")
+    .isMongoId()
+    .withMessage("Invalid subCategory ID format")
+    .notEmpty()
+    .withMessage("Sub-Category is required"),
+
+  check("slug")
+    .optional()
+    .isString()
+    .withMessage("Slug should be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug should not exceed 100 characters"),
+
+  check("price")
+    .isNumeric()
+    .withMessage("Price must be a number")
+    .notEmpty()
+    .withMessage("Price is required")
+    .custom((value) => value >= 0)
+    .withMessage("Price must be greater than or equal to 0"),
+
+  check("quantity")
+    .isNumeric()
+    .withMessage("Quantity unit must be a number")
+    .notEmpty()
+    .withMessage("Quantity unit should not be empty")
+    .custom((value) => value >= 0)
+    .withMessage("quantityUnit must be greater than or equal to 0"),
+
+  check("pricingType")
+    .optional()
+    .isIn(["perWord", "perPost", "perReview", "fixed"])
+    .withMessage(
+      "Pricing type must be one of 'perWord', 'perPost', 'perReview', or 'fixed'"
+    ),
+
+  check("stock")
+    .optional()
+    .isNumeric()
+    .isInt()
+    .withMessage("Stock must be an integer")
+    .custom((value) => value >= 0)
+    .withMessage("Stock must be greater than or equal to 0"),
+
+  check("images")
+    .optional()
+    .isArray()
+    .withMessage("Images should be an array of strings"),
+
+  check("tags")
+    .optional()
+    .isArray()
+    .withMessage("Tags should be an array of strings"),
+
+  check("priority")
+    .optional()
+    .isInt()
+    .withMessage("Priority must be an integer"),
+
+  check("keywords")
+    .optional()
+    .isArray()
+    .withMessage("Keywords should be an array of strings"),
+
+  check("status")
+    .optional()
+    .isIn(["Active", "Inactive", "Archived", "Out of Stock"])
+    .withMessage(
+      "Status must be one of Active, Inactive, Archived, or Out of Stock"
+    ),
+
+  check("isFeatured")
+    .optional()
+    .isBoolean()
+    .withMessage("isFeatured must be a boolean"),
+];
+
+export const validateUpdateProduct = [
+  check("featuredImage")
+    .optional()
+    .isString()
+    .withMessage("Featured image URL must be a string")
+    .notEmpty()
+    .withMessage("Featured image URL should not be empty"),
+
+  check("name")
+    .optional()
+    .isString()
+    .withMessage("Product name must be a string")
+    .notEmpty()
+    .withMessage("Product name should not be empty"),
+
+  check("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string")
+    .notEmpty()
+    .withMessage("Description should not be empty"),
+
+  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
+
+  check("formId").optional().isMongoId().withMessage("Invalid form ID format"),
+
+  check("category")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid category ID format"),
+
+  check("subCategory")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid subCategory ID format"),
+
+  check("slug")
+    .optional()
+    .isString()
+    .withMessage("Slug should be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug should not exceed 100 characters"),
+
+  check("price")
+    .optional()
+    .isNumeric()
+    .withMessage("Price must be a number")
+    .custom((value) => value >= 0)
+    .withMessage("Price must be greater than or equal to 0"),
+
+  check("quantity")
+    .optional()
+    .isNumeric()
+    .withMessage("Quantity unit must be a number"),
+
+  check("pricingType")
+    .optional()
+    .isIn(["perWord", "perPost", "perReview", "fixed"])
+    .withMessage(
+      "Pricing type must be one of 'perWord', 'perPost', 'perReview', or 'fixed'"
+    ),
+
+  check("stock")
+    .optional()
+    .isInt()
+    .withMessage("Stock must be an integer")
+    .custom((value) => value >= 0)
+    .withMessage("Stock must be greater than or equal to 0"),
+
+  check("images")
+    .optional()
+    .isArray()
+    .withMessage("Images should be an array of strings"),
+
+  check("tags")
+    .optional()
+    .isArray()
+    .withMessage("Tags should be an array of strings"),
+
+  check("priority")
+    .optional()
+    .isInt()
+    .withMessage("Priority must be an integer"),
+
+  check("keywords")
+    .optional()
+    .isArray()
+    .withMessage("Keywords should be an array of strings"),
+
+  check("status")
+    .optional()
+    .isIn(["Active", "Inactive", "Archived", "Out of Stock"])
+    .withMessage(
+      "Status must be one of Active, Inactive, Archived, or Out of Stock"
+    ),
+
+  check("isFeatured")
+    .optional()
+    .isBoolean()
+    .withMessage("isFeatured must be a boolean"),
+];
+
+export const validateProductCreateCategory = [
+  check("name")
+    .isString()
+    .withMessage("Category name is required")
+    .notEmpty()
+    .withMessage("Category name should not be empty"),
+
+  check("description")
+    .optional()
+    .isString()
+    .withMessage("Description should be a string"),
+
+  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
+
+  check("parentCategory")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid parent category ID format"),
+
+  check("slug")
+    .optional()
+    .isString()
+    .withMessage("Slug should be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug should not exceed 100 characters"),
+
+  check("image")
+    .optional()
+    .isString()
+    .withMessage("Image URL should be a string"),
+
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta title should be a string"),
+
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta description should be a string"),
+
+  check("canonicalLink")
+    .optional()
+    .isString()
+    .withMessage("Canonical link should be a string"),
+
+  check("status")
+    .optional()
+    .isIn(["Active", "Inactive", "Archived"])
+    .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
+
+  check("children")
+    .optional()
+    .isArray()
+    .withMessage("Children should be an array of category IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each child category ID should be a valid ObjectId"),
+
+  check("products")
+    .optional()
+    .isArray()
+    .withMessage("Products should be an array of product IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each product ID should be a valid ObjectId"),
+];
+
+export const validateProductUpdateCategory = [
+  check("name")
+    .optional()
+    .isString()
+    .withMessage("Category name is required")
+    .notEmpty()
+    .withMessage("Category name should not be empty"),
+
+  check("description")
+    .optional()
+    .isString()
+    .withMessage("Description should be a string"),
+
+  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
+
+  check("parentCategory")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid parent category ID format"),
+
+  check("slug")
+    .optional()
+    .isString()
+    .withMessage("Slug should be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug should not exceed 100 characters"),
+
+  check("image")
+    .optional()
+    .isString()
+    .withMessage("Image URL should be a string"),
+
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta title should be a string"),
+
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta description should be a string"),
+
+  check("canonicalLink")
+    .optional()
+    .isString()
+    .withMessage("Canonical link should be a string"),
+
+  check("status")
+    .optional()
+    .isIn(["Active", "Inactive", "Archived"])
+    .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
+
+  check("children")
+    .optional()
+    .isArray()
+    .withMessage("Children should be an array of category IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each child category ID should be a valid ObjectId"),
+
+  check("products")
+    .optional()
+    .isArray()
+    .withMessage("Products should be an array of product IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each product ID should be a valid ObjectId"),
 ];

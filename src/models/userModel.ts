@@ -1,81 +1,85 @@
 import mongoose, { Schema } from "mongoose";
 import { UserTypes } from "../types/userTypes";
 
-const UserSchema = new Schema({
-  name: { type: String, required: true },
-  userName: { type: String },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  contact: { type: String, required: true },
-  isAdmin: { type: Boolean, default: false },
-  role: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Role",
-    default: "662f676a0072eaee25b546b8",
-  },
-  cart: {
-    type: [
+const UserSchema = new Schema<UserTypes>(
+  {
+    image: { type: String },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    userName: { type: String },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: { type: String },
+    contact: { type: String },
+    isAdmin: { type: Boolean, default: false },
+    role: {
+      type: Schema.Types.ObjectId,
+      ref: "Role",
+      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8"),
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    appleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    orderHistory: [
       {
-        product: { type: Schema.Types.ObjectId, ref: "Products" },
-        quantity: { type: Number, default: 1 },
+        orderId: { type: Schema.Types.ObjectId, ref: "Order" },
+        status: {
+          type: String,
+          enum: ["Pending", "Shipped", "Delivered", "Canceled"],
+          default: "Pending",
+        },
+        dateOrdered: { type: Date, default: Date.now },
+        items: [
+          {
+            productId: { type: Schema.Types.ObjectId, ref: "Product" },
+            quantity: { type: Number, required: true },
+            price: { type: Number, required: true },
+          },
+        ],
+        totalAmount: { type: Number, required: true },
       },
     ],
-    default: [],
+    cart: {
+      type: Schema.Types.ObjectId,
+      ref: "Cart",
+      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8"),
+    },
+    wishlist: {
+      type: [
+        {
+          productId: { type: Schema.Types.ObjectId, ref: "Product" },
+          dateAdded: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+    userStatus: {
+      type: Boolean,
+      default: false,
+    },
+    refreshToken: {
+      type: String,
+      default: null,
+    },
   },
-  orders: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: "Orders",
-    default: [],
-  },
-  userStatus: {
-    type: Boolean,
-    default: false,
-  },
-  refreshToken: {
-    type: String,
-    default: null,
-  },
-});
+  { timestamps: true }
+);
 
 const User = mongoose.model<UserTypes>("User", UserSchema);
 
 export default User;
-
-// import mongoose, { Schema } from "mongoose";
-// import { UserTypes } from "../types/userTypes";
-
-// const UserSchema = new Schema({
-//   name: { type: String, required: true },
-//   userName: { type: String },
-//   email: { type: String, required: true, unique: true },
-//   password: { type: String, required: true },
-//   contact: { type: String, required: true },
-//   isAdmin: { type: Boolean, default: false },
-//   role: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Role",
-//     default: "662f676a0072eaee25b546b8",
-//   },
-//   cart: {
-//     type: [
-//       {
-//         product: { type: Schema.Types.ObjectId, ref: "Products" },
-//         quantity: { type: Number, default: 1 },
-//       },
-//     ],
-//     default: [],
-//   },
-//   orders: {
-//     type: [mongoose.Schema.Types.ObjectId],
-//     ref: "Orders",
-//     default: [],
-//   },
-//   userStatus: {
-//     type: Boolean,
-//     default: false,
-//   },
-// });
-
-// const User = mongoose.model<UserTypes>("User", UserSchema);
-
-// export default User;
