@@ -68,9 +68,9 @@ export const createProduct = async (
     // Create the product with the parent category assigned
     const newProduct: ProductTypes = {
       ...body,
-      userId: body.userId || userId,
       category: parentCategory ? parentCategory._id : null,
       slug: slugToUse,
+      createdBy: body.userId || userId,
     };
     const createdProduct = await Product.create(newProduct);
 
@@ -95,7 +95,7 @@ export const createProduct = async (
       .status(201)
       .json({ message: "Product created successfully", data: createdProduct });
   } catch (error) {
-    next(error);
+    next(new CustomError(500, "Error creating product"));
   }
 };
 
@@ -107,21 +107,23 @@ export const readProducts = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { identifier } = req.params;
+  const { query } = req.query;
 
   try {
     let product;
 
-    if (identifier) {
+    if (query) {
+      const idString = query.toString();
+
       // Check if the identifier is a valid MongoDB ObjectId
-      if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+      if (idString.match(/^[0-9a-fA-F]{24}$/)) {
         // If identifier is an ObjectId, find product by ID
-        product = await Product.findById(identifier)
+        product = await Product.findById(idString)
           .populate("userId category")
           .lean();
       } else {
         // If identifier is a slug, find product by slug
-        product = await Product.findOne({ slug: identifier })
+        product = await Product.findOne({ slug: idString })
           .populate("userId category")
           .lean();
       }
@@ -155,8 +157,8 @@ export const updateProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId, body, params } = req;
-  const { identifier } = params;
+  const { userId, body } = req;
+  const { query } = req.query;
 
   try {
     // Check Permission
@@ -174,14 +176,16 @@ export const updateProduct = async (
       });
     }
 
+    const idString = query.toString();
+
     // Find the product (either by ID or slug)
     let product;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
       // Find product by ID
-      product = await Product.findById(identifier);
+      product = await Product.findById(idString);
     } else {
       // Find product by slug
-      product = await Product.findOne({ slug: identifier });
+      product = await Product.findOne({ slug: idString });
     }
 
     // Check if the product exists
@@ -253,6 +257,9 @@ export const updateProduct = async (
       ]);
     }
 
+    // Ensure updatedBy is set to the current userId
+    body.updatedBy = userId;
+
     // Update the product with the provided data
     const updatedProduct = await Product.findByIdAndUpdate(
       product._id,
@@ -278,8 +285,8 @@ export const deleteProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId, params } = req;
-  const { identifier } = params;
+  const { userId } = req;
+  const { query } = req.query;
 
   try {
     // Check Permission
@@ -288,12 +295,14 @@ export const deleteProduct = async (
       return res.status(403).json({ message: "Permission denied" });
     }
 
+    const idString = query.toString();
+
     // Find the product (either by ID or slug)
     let product;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      product = await Product.findById(identifier);
+    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
+      product = await Product.findById(idString);
     } else {
-      product = await Product.findOne({ slug: identifier });
+      product = await Product.findOne({ slug: idString });
     }
 
     if (!product) {
@@ -334,7 +343,7 @@ export const duplicateProduct = async (
   next: NextFunction
 ) => {
   const { userId, params } = req;
-  const { identifier } = params;
+  const { query } = req.query;
 
   try {
     // Check Permission
@@ -343,12 +352,14 @@ export const duplicateProduct = async (
       return res.status(403).json({ message: "Permission denied" });
     }
 
+    const idString = query.toString();
+
     // Find the product (either by ID or slug)
     let product;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      product = await Product.findById(identifier).lean();
+    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
+      product = await Product.findById(idString).lean();
     } else {
-      product = await Product.findOne({ slug: identifier }).lean();
+      product = await Product.findOne({ slug: idString }).lean();
     }
 
     if (!product) {

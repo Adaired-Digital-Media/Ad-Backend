@@ -3,7 +3,6 @@ import { CategoryTypes } from "../types/productTypes";
 
 const CategorySchema = new Schema<CategoryTypes>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
     name: { type: String, required: true, unique: true },
     description: { type: String },
     parentCategory: {
@@ -23,12 +22,17 @@ const CategorySchema = new Schema<CategoryTypes>(
       enum: ["Active", "Inactive", "Archived"],
       default: "Active",
     },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );
 
 CategorySchema.index({ slug: 1 }, { unique: true });
 
-const ProductCategory = mongoose.model<CategoryTypes>("ProductCategory", CategorySchema);
+const ProductCategory = mongoose.model<CategoryTypes>(
+  "ProductCategory",
+  CategorySchema
+);
 
 export default ProductCategory;

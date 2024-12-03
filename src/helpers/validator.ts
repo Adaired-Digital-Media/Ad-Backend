@@ -754,10 +754,6 @@ export const validateCreateProduct = [
     .notEmpty()
     .withMessage("Description should not be empty"),
 
-  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
-
-  check("formId").optional().isMongoId().withMessage("Invalid form ID format"),
-
   check("category")
     .optional()
     .isMongoId()
@@ -776,21 +772,13 @@ export const validateCreateProduct = [
     .isLength({ max: 100 })
     .withMessage("Slug should not exceed 100 characters"),
 
-  check("price")
+  check("pricePerUnit")
     .isNumeric()
     .withMessage("Price must be a number")
     .notEmpty()
     .withMessage("Price is required")
     .custom((value) => value >= 0)
     .withMessage("Price must be greater than or equal to 0"),
-
-  check("quantity")
-    .isNumeric()
-    .withMessage("Quantity unit must be a number")
-    .notEmpty()
-    .withMessage("Quantity unit should not be empty")
-    .custom((value) => value >= 0)
-    .withMessage("quantityUnit must be greater than or equal to 0"),
 
   check("pricingType")
     .optional()
@@ -826,6 +814,23 @@ export const validateCreateProduct = [
     .optional()
     .isArray()
     .withMessage("Keywords should be an array of strings"),
+
+  check("formId").optional().isMongoId().withMessage("Invalid form ID format"),
+
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta title should be a string"),
+
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta description should be a string"),
+
+  check("canonicalLink")
+    .optional()
+    .isString()
+    .withMessage("Canonical link should be a string"),
 
   check("status")
     .optional()
@@ -954,12 +959,28 @@ export const validateProductCreateCategory = [
     .isString()
     .withMessage("Description should be a string"),
 
-  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
-
   check("parentCategory")
     .optional()
     .isMongoId()
     .withMessage("Invalid parent category ID format"),
+
+  check("children")
+    .optional()
+    .isArray()
+    .withMessage("Children should be an array of category IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each child category ID should be a valid ObjectId"),
+
+  check("products")
+    .optional()
+    .isArray()
+    .withMessage("Products should be an array of product IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each product ID should be a valid ObjectId"),
 
   check("slug")
     .optional()
@@ -993,23 +1014,15 @@ export const validateProductCreateCategory = [
     .isIn(["Active", "Inactive", "Archived"])
     .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
 
-  check("children")
+  check("createdBy")
     .optional()
-    .isArray()
-    .withMessage("Children should be an array of category IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each child category ID should be a valid ObjectId"),
+    .isMongoId()
+    .withMessage("Invalid user ID format"),
 
-  check("products")
+  check("updatedBy")
     .optional()
-    .isArray()
-    .withMessage("Products should be an array of product IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each product ID should be a valid ObjectId"),
+    .isMongoId()
+    .withMessage("Invalid user ID format"),
 ];
 
 export const validateProductUpdateCategory = [
@@ -1025,12 +1038,28 @@ export const validateProductUpdateCategory = [
     .isString()
     .withMessage("Description should be a string"),
 
-  check("userId").optional().isMongoId().withMessage("Invalid user ID format"),
-
   check("parentCategory")
     .optional()
     .isMongoId()
     .withMessage("Invalid parent category ID format"),
+
+  check("children")
+    .optional()
+    .isArray()
+    .withMessage("Children should be an array of category IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each child category ID should be a valid ObjectId"),
+
+  check("products")
+    .optional()
+    .isArray()
+    .withMessage("Products should be an array of product IDs")
+    .custom((value) =>
+      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
+    )
+    .withMessage("Each product ID should be a valid ObjectId"),
 
   check("slug")
     .optional()
@@ -1064,21 +1093,13 @@ export const validateProductUpdateCategory = [
     .isIn(["Active", "Inactive", "Archived"])
     .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
 
-  check("children")
+  check("createdBy")
     .optional()
-    .isArray()
-    .withMessage("Children should be an array of category IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each child category ID should be a valid ObjectId"),
+    .isMongoId()
+    .withMessage("Invalid user ID format"),
 
-  check("products")
+  check("updatedBy")
     .optional()
-    .isArray()
-    .withMessage("Products should be an array of product IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each product ID should be a valid ObjectId"),
+    .isMongoId()
+    .withMessage("Invalid user ID format"),
 ];

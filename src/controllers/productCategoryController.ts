@@ -52,8 +52,8 @@ export const createCategory = async (
     // Create category
     const newCategory: CategoryTypes = {
       ...body,
-      userId: body.userId ? body.userId : userId,
       slug: slugToUse,
+      createdBy: body.userId ? body.userId : userId,
     };
     const createdCategory = await Category.create(newCategory);
 
@@ -71,7 +71,7 @@ export const createCategory = async (
       data: createdCategory,
     });
   } catch (error) {
-    next(error);
+    throw new CustomError(400, "Something went wrong");
   }
 };
 
@@ -83,12 +83,14 @@ export const readCategories = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { identifier } = req.params;
+  let { identifier } = req.query;
   const { children, products, childrenProducts } = req.query;
 
   try {
     let category;
     const pipeline: any[] = [];
+
+    identifier = String(identifier);
 
     // Match based on the identifier (either ObjectId or slug)
     if (identifier) {
@@ -186,8 +188,8 @@ export const updateCategory = async (
   next: NextFunction
 ) => {
   try {
-    const { userId, body, params } = req;
-    const { identifier } = params;
+    const { userId, body } = req;
+    let { identifier } = req.query;
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "categories", 2);
@@ -203,6 +205,8 @@ export const updateCategory = async (
         errors: errors.array(),
       });
     }
+
+    identifier = String(identifier);
 
     // Find the category (either by ID or slug)
     let category;
@@ -249,6 +253,8 @@ export const updateCategory = async (
         { new: true }
       );
     }
+
+    body.updatedBy = userId;
 
     // Update the category
     const updatedCategory = await Category.findByIdAndUpdate(
@@ -318,7 +324,7 @@ export const duplicateCategory = async (
   next: NextFunction
 ) => {
   const { userId, params } = req;
-  const { identifier } = params;
+  let { identifier } = req.query;
 
   try {
     // Check Permission
@@ -326,6 +332,8 @@ export const duplicateCategory = async (
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }
+
+    identifier = String(identifier);
 
     // Find the category (either by ID or slug)
     let category;

@@ -12,10 +12,13 @@ const OrderSchema = new Schema<OrderTypes>(
           ref: "Product",
           required: true,
         },
+        wordsCount: { type: Number, min: 100 },
+        reviewsCount: { type: Number, min: 1 },
         quantity: { type: Number, required: true, min: 1 },
-        price: { type: Number, required: true },
+        totalPrice: { type: Number, required: true },
         discountedPrice: { type: Number, required: true },
-        productType: {
+        additionalInformation: { type: String },
+        orderType: {
           type: String,
           enum: ["OneTime", "Monthly"],
           required: true,
@@ -24,6 +27,7 @@ const OrderSchema = new Schema<OrderTypes>(
     ],
     totalQuantity: { type: Number, required: true },
     totalPrice: { type: Number, required: true },
+    discountedPrice: { type: Number, required: true },
     couponId: { type: Schema.Types.ObjectId, ref: "Coupon", default: null },
     couponDiscount: { type: Number, default: 0 },
     paymentId: { type: String, required: true },

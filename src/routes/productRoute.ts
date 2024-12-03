@@ -8,7 +8,7 @@ import {
 } from "../controllers/productController";
 import verifyToken from "../middlewares/authMiddleware";
 import {
-  validateCreateProduct,
+  validateCreateProduct, 
   validateUpdateProduct,
 } from "../helpers/validator";
 
@@ -21,13 +21,13 @@ router.post(
   createProduct
 );
 router.patch(
-  "/update-product/:identifier",
+  "/update-product",
   verifyToken,
   validateUpdateProduct,
   updateProduct
 );
-router.get("/read-product/:identifier?", readProducts);
-router.delete("/delete-product/:identifier", verifyToken, deleteProduct);
-router.post("/duplicate-product/:identifier", verifyToken, duplicateProduct);
+router.get("/read-product", readProducts);
+router.delete("/delete-product", verifyToken, deleteProduct);
+router.post("/duplicate-product", verifyToken, duplicateProduct);
 
 export default router;

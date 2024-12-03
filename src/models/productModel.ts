@@ -6,16 +6,13 @@ const ProductSchema = new Schema<ProductTypes>(
     featuredImage: { type: String, required: true },
     name: { type: String, required: true },
     description: { type: String, required: true },
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
-    formId: { type: Schema.Types.ObjectId, ref: "Form" },
-    category: { type: Schema.Types.ObjectId, ref: "Category" },
+    category: { type: Schema.Types.ObjectId, ref: "ProductCategory" },
     subCategory: [
-      { type: Schema.Types.ObjectId, ref: "Category", required: true },
+      { type: Schema.Types.ObjectId, ref: "ProductCategory", required: true },
     ],
     minimumQuantity: { type: Number, default: 1 },
     slug: { type: String, unique: true },
-    price: { type: Number, required: true },
-    quantity: { type: Number, required: true },
+    pricePerUnit: { type: Number, required: true },
     pricingType: {
       type: String,
       enum: ["perWord", "perPost", "perReview", "perMonth", "oneTime"],
@@ -26,6 +23,7 @@ const ProductSchema = new Schema<ProductTypes>(
     tags: { type: [String] },
     priority: { type: Number, default: 0 },
     keywords: { type: [String] },
+    formId: { type: Schema.Types.ObjectId, ref: "Form" },
     metaTitle: { type: String },
     metaDescription: { type: String },
     canonicalLink: { type: String },
@@ -35,6 +33,8 @@ const ProductSchema = new Schema<ProductTypes>(
       default: "Active",
     },
     isFeatured: { type: Boolean, default: false },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+    updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );

@@ -1,34 +1,33 @@
-import { Types } from "mongoose";
+import mongoose, { Types, Schema, Document, Model } from "mongoose";
 
 export type ProductTypes = {
   featuredImage: string;
   name: string;
   description: string;
-  userId: Types.ObjectId;
-  formId: Types.ObjectId;
   category: Types.ObjectId;
   subCategory: Types.ObjectId;
   minimumQuantity?: number;
   slug: string;
-  price: number;
-  quantity: number;
+  pricePerUnit: number;
   pricingType: "perWord" | "perPost" | "perReview" | "perMonth" | "oneTime";
   stock: number;
   images: string[];
   tags?: string[];
   priority?: number;
   keywords?: string[];
+  formId?: Types.ObjectId;
   metaTitle?: string;
   metaDescription?: string;
   canonicalLink?: string;
   status: "Active" | "Inactive" | "Archived" | "Out of Stock";
   isFeatured: boolean;
+  createdBy?: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 };
 
 export interface CategoryTypes {
-  userId: Types.ObjectId;
   name: string;
   description?: string;
   parentCategory?: Types.ObjectId;
@@ -40,6 +39,24 @@ export interface CategoryTypes {
   metaDescription?: string;
   canonicalLink?: string;
   status: "Active" | "Inactive" | "Archived";
+  createdBy?: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface FormField {
+  name: string;
+  label: string;
+  placeholder: string;
+  type: "text" | "number" | "textarea" | "checkbox" | "radio" | "select";
+  options?: { label: string; value: string }[];
+  required: boolean;
+}
+
+export interface Form extends Document {
+  productType: string;
+  fields: FormField[];
+  createdBy: Types.ObjectId;
+  updatedBy: Types.ObjectId;
 }

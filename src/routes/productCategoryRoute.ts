@@ -20,14 +20,14 @@ router.post(
   validateProductCreateCategory,
   createCategory
 );
-router.get("/read-category/:identifier?", readCategories);
+router.get("/read-category", readCategories);
 router.patch(
-  "/update-category/:identifier",
+  "/update-category",
   verifyToken,
   validateProductUpdateCategory,
   updateCategory
 );
-router.delete("/delete-category/:identifier", verifyToken, deleteCategory);
-router.post("/duplicate-category/:identifier", verifyToken, duplicateCategory);
+router.delete("/delete-category", verifyToken, deleteCategory);
+router.post("/duplicate-category", verifyToken, duplicateCategory);
 
 export default router;
