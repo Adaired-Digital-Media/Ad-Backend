@@ -42,8 +42,8 @@ export const syncOrAddToCart = async (
         // Update the existing product's quantity and prices
         const existingProduct = cart.products[existingProductIndex];
         existingProduct.quantity += item.quantity;
-        existingProduct.price = item.price;
-        existingProduct.discountedPrice = item.discountedPrice;
+        existingProduct.pricePerUnit = item.pricePerUnit;
+        existingProduct.totalPrice = item.totalPrice;
       } else {
         // Add new product to the cart
         cart.products.push(item);
@@ -53,7 +53,7 @@ export const syncOrAddToCart = async (
     // Update total quantity and total price
     cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
     cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.discountedPrice * p.quantity,
+      (acc, p) => acc + p.totalPrice * p.quantity,
       0
     );
 
@@ -64,6 +64,7 @@ export const syncOrAddToCart = async (
       data: cart,
     });
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -137,7 +138,7 @@ export const updateCart = async (
     // Recalculate total quantity and total price
     cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
     cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.discountedPrice * p.quantity,
+      (acc, p) => acc + p.totalPrice * p.quantity,
       0
     );
 
@@ -185,7 +186,7 @@ export const deleteProduct = async (
     // Recalculate total quantity and total price
     cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
     cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.discountedPrice * p.quantity,
+      (acc, p) => acc + p.totalPrice * p.quantity,
       0
     );
 

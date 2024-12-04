@@ -3,8 +3,9 @@ import { Types } from "mongoose";
 export interface CartProduct {
   productId: Types.ObjectId;
   quantity: number;
-  price: number;
-  discountedPrice: number;
+  wordCount?: number;
+  pricePerUnit: number;
+  totalPrice: number;
   productType: "OneTime" | "Monthly";
   addedAt: Date;
 }

@@ -12,8 +12,9 @@ const CartSchema = new Schema<CartTypes>(
           required: true,
         },
         quantity: { type: Number, required: true, min: 1 },
-        price: { type: Number, required: true },
-        discountedPrice: { type: Number, required: true },
+        wordCount: { type: Number, min: 100 },
+        pricePerUnit: { type: Number, required: true },
+        totalPrice: { type: Number, required: true },
         productType: {
           type: String,
           enum: ["OneTime", "Monthly"],

@@ -119,12 +119,12 @@ export const readProducts = async (
       if (idString.match(/^[0-9a-fA-F]{24}$/)) {
         // If identifier is an ObjectId, find product by ID
         product = await Product.findById(idString)
-          .populate("userId category")
+          .populate("createdBy category subCategory")
           .lean();
       } else {
         // If identifier is a slug, find product by slug
         product = await Product.findOne({ slug: idString })
-          .populate("userId category")
+          .populate("createdBy category subCategory")
           .lean();
       }
 
@@ -138,14 +138,16 @@ export const readProducts = async (
       });
     } else {
       // If no identifier is provided, return all products
-      const products = await Product.find().populate("userId").lean();
+      const products = await Product.find()
+        .populate("createdBy category subCategory")
+        .lean();
       return res.status(200).json({
         message: "All products",
         data: products,
       });
     }
   } catch (error) {
-    return next(error);
+    return next(new CustomError(400, "Something went wrong"));
   }
 };
 
