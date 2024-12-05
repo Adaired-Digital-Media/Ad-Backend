@@ -56,7 +56,6 @@ export const syncOrAddToCart = async (
   }
 };
 
-
 // ***************************************
 // ********* Get Cart for a User *********
 // ***************************************
@@ -91,7 +90,7 @@ export const getUserCart = async (
 };
 
 // ***************************************
-// ***** Update Cart Product Quantity ****
+// ********* Update Cart Product *********
 // ***************************************
 export const updateCart = async (
   req: Request,
@@ -99,7 +98,7 @@ export const updateCart = async (
   next: NextFunction
 ) => {
   const { userId } = req;
-  const { productId, quantity, orderType } = req.body;
+  const { productId, ...updateFields } = req.body;
 
   try {
     // Check if the cart exists
@@ -119,9 +118,12 @@ export const updateCart = async (
       return res.status(404).json({ message: "Product not found in cart" });
     }
 
-    // Update the quantity of the product
-    product.quantity = quantity;
-    product.orderType = orderType;
+    // Dynamically update the product fields from the request body
+    Object.keys(updateFields).forEach((key) => {
+      if (key in product) {
+        (product as any)[key] = updateFields[key];
+      }
+    });
 
     // Recalculate total quantity and total price
     cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
