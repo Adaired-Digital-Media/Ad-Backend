@@ -11,11 +11,12 @@ const CartSchema = new Schema<CartTypes>(
           ref: "Product",
           required: true,
         },
-        quantity: { type: Number, required: true, min: 1 },
         wordCount: { type: Number, min: 100 },
+        quantity: { type: Number, required: true, min: 1 },
         pricePerUnit: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
-        productType: {
+        additionalInfo: { type: String },
+        orderType: {
           type: String,
           enum: ["OneTime", "Monthly"],
           default: "OneTime",

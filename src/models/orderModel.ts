@@ -13,11 +13,10 @@ const OrderSchema = new Schema<OrderTypes>(
           required: true,
         },
         wordsCount: { type: Number, min: 100 },
-        reviewsCount: { type: Number, min: 1 },
         quantity: { type: Number, required: true, min: 1 },
+        pricePerUnit: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
-        discountedPrice: { type: Number, required: true },
-        additionalInformation: { type: String },
+        additionalInfo: { type: String },
         orderType: {
           type: String,
           enum: ["OneTime", "Monthly"],

@@ -23,31 +23,18 @@ export const syncOrAddToCart = async (
         userId: body.userId || userId,
         products: [],
       });
-      // Find the user and add the cart to the user's cart array
-      // Find the user and update their cart reference
+
+      // Find the user and set their cart reference
       const user = await User.findById(userId);
       if (user) {
-        // Set the cart for the user (assuming it's a single cart reference)
         user.cart = cart._id;
         await user.save();
       }
     }
 
-    // Add the cart items (or merge with existing ones)
+    // Add all cart items as new entries
     cartItems.forEach((item: any) => {
-      const existingProductIndex = cart.products.findIndex(
-        (p) => p.productId.toString() === item.productId
-      );
-      if (existingProductIndex > -1) {
-        // Update the existing product's quantity and prices
-        const existingProduct = cart.products[existingProductIndex];
-        existingProduct.quantity += item.quantity;
-        existingProduct.pricePerUnit = item.pricePerUnit;
-        existingProduct.totalPrice = item.totalPrice;
-      } else {
-        // Add new product to the cart
-        cart.products.push(item);
-      }
+      cart.products.push(item);
     });
 
     // Update total quantity and total price
@@ -60,14 +47,15 @@ export const syncOrAddToCart = async (
     // Save the cart
     await cart.save();
     res.status(200).json({
-      message: "Cart created successfully",
+      message: "Cart updated successfully",
       data: cart,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };
+
 
 // ***************************************
 // ********* Get Cart for a User *********
@@ -111,7 +99,7 @@ export const updateCart = async (
   next: NextFunction
 ) => {
   const { userId } = req;
-  const { productId, quantity, productType } = req.body;
+  const { productId, quantity, orderType } = req.body;
 
   try {
     // Check if the cart exists
@@ -133,7 +121,7 @@ export const updateCart = async (
 
     // Update the quantity of the product
     product.quantity = quantity;
-    product.productType = productType;
+    product.orderType = orderType;
 
     // Recalculate total quantity and total price
     cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);

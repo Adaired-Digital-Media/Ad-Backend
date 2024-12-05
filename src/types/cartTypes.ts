@@ -6,7 +6,8 @@ export interface CartProduct {
   wordCount?: number;
   pricePerUnit: number;
   totalPrice: number;
-  productType: "OneTime" | "Monthly";
+  additionalInfo?:string;
+  orderType: "OneTime" | "Monthly";
   addedAt: Date;
 }
 
