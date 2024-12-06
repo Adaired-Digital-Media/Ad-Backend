@@ -1,90 +1,76 @@
-import Cart from "../models/cartModel";
-import checkPermission from "../helpers/authHelper";
+import JunkCartLeads from "../models/junkCartLeadsModel";
 import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
+import { generateUserId } from "../helpers/generateGuestId";
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
 // *********************************************************
-export const syncOrAddToCart = async (
+export const syncOrAddToJunkCart = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { userId, body } = req;
-    const { cartItems } = body;
+    const { body } = req;
+    const { userId, cartItems } = body;
+    let user = userId || generateUserId();
 
     // Find the user's cart or create one if it doesn't exist
-    let cart = await Cart.findOne({ userId });
+    let cart = await JunkCartLeads.findOne({ userId: user });
+
     if (!cart) {
       // Create a new cart if one doesn't exist
-      cart = new Cart({
-        userId: body.userId || userId,
+      cart = new JunkCartLeads({
+        userId: user,
         products: [],
       });
 
-      // Find the user and set their cart reference
-      const user = await User.findById(userId);
-      if (user) {
-        user.cart = cart._id;
-        await user.save();
+      // Optionally link the cart to a User document, if applicable
+      if (userId) {
+        const existingUser = await User.findOne({ userId });
+        if (existingUser) {
+          existingUser.cart = cart._id; // Link the cart to the user
+          await existingUser.save();
+        }
       }
     }
 
-    // Add all cart items as new entries
-    cartItems.forEach((item: any) => {
-      cart.products.push(item);
+    // Add or update cart items
+    cartItems.forEach((newItem: any) => {
+      const existingItem = cart.products.find(
+        (product: any) => product.productId === newItem.productId
+      );
+      if (existingItem) {
+        // Update quantity and price for existing items
+        existingItem.quantity += newItem.quantity;
+        existingItem.totalPrice += newItem.totalPrice;
+      } else {
+        // Add new item
+        cart.products.push(newItem);
+      }
     });
 
-    // Update total quantity and total price
-    cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
+    // Recalculate total quantity and price
+    cart.totalQuantity = cart.products.reduce(
+      (acc: number, product: any) => acc + product.quantity,
+      0
+    );
     cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.totalPrice * p.quantity,
+      (acc: number, product: any) => acc + product.totalPrice,
       0
     );
 
     // Save the cart
     await cart.save();
+
     res.status(200).json({
       message: "Cart updated successfully",
+      guestId: userId, // Returning the guest ID for tracking
       data: cart,
     });
   } catch (error) {
     console.error(error);
-    next(error);
-  }
-};
-
-// ***************************************
-// ********* Get Cart for a User *********
-// ***************************************
-export const getUserCart = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { userId } = req;
-    const { customerId } = req.query;
-
-    // Check Permission
-    const permissionCheck = await checkPermission(userId, "carts", 1);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
-
-    const cart = await Cart.findOne({
-      userId: customerId,
-    }).populate("products.productId");
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-    res.status(200).json({
-      message: "Cart data fetched successfully",
-      data: cart,
-    });
-  } catch (error) {
     next(error);
   }
 };
@@ -97,12 +83,12 @@ export const updateCart = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
+  const { userId } = req.query;
   const { productId, ...updateFields } = req.body;
 
   try {
     // Check if the cart exists
-    const cart = await Cart.findOne({
+    const cart = await JunkCartLeads.findOne({
       userId: userId,
     });
 
@@ -110,14 +96,12 @@ export const updateCart = async (
       return res.status(404).json({ message: "Cart not found" });
     }
 
-    // Find the specific product entry by its unique ID
+    // Find the product to update
     const product = cart.products.find(
-      (p) => p._id.toString() === updateFields.productEntryId
+      (p) => p.productId.toString() === productId
     );
     if (!product) {
-      return res
-        .status(404)
-        .json({ message: "Product entry not found in cart" });
+      return res.status(404).json({ message: "Product not found in cart" });
     }
 
     // Dynamically update the product fields from the request body
@@ -154,12 +138,12 @@ export const deleteProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
+  const { userId } = req.query;
   const { customerId, productId } = req.query;
 
   try {
     // Check if the cart exists
-    const cart = await Cart.findOne({ userId: customerId || userId });
+    const cart = await JunkCartLeads.findOne({ userId: customerId || userId });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
@@ -202,17 +186,10 @@ export const clearCart = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  const { customerId } = req.query;
-
-  // Check Permission
-  const permissionCheck = await checkPermission(userId, "carts", 3);
-  if (!permissionCheck) {
-    return res.status(403).json({ message: "Permission denied" });
-  }
+  const { userId } = req.query;
 
   try {
-    const cart = await Cart.findOne({ userId: customerId });
+    const cart = await JunkCartLeads.findOne({ userId: userId });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
@@ -239,3 +216,36 @@ export const clearCart = async (
     next(error);
   }
 };
+
+// // ***************************************
+// // ********* Get Cart for a User *********
+// // ***************************************
+// export const getUserCart = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId } = req;
+//     const { customerId } = req.query;
+
+//     // Check Permission
+//     const permissionCheck = await checkPermission(userId, "carts", 1);
+//     if (!permissionCheck) {
+//       return res.status(403).json({ message: "Permission denied" });
+//     }
+
+//     const cart = await JunkCartLeads.findOne({
+//       userId: customerId,
+//     }).populate("products.productId");
+//     if (!cart) {
+//       return res.status(404).json({ message: "Cart not found" });
+//     }
+//     res.status(200).json({
+//       message: "Cart data fetched successfully",
+//       data: cart,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };

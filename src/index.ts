@@ -19,6 +19,7 @@ import productRoute from "./routes/productRoute";
 import productFormRoute from "./routes/productFormRoute";
 import productCategoryRoute from "./routes/productCategoryRoute";
 import cartRoute from "./routes/cartRoute";
+import junkCartLeadsRoute from "./routes/junkCartLeadsRoute";
 import orderRoute from "./routes/orderRoute";
 
 const app: Application = express();
@@ -69,6 +70,7 @@ app.use(`${basePath}/product`, productRoute);
 app.use(`${basePath}/product/form`, productFormRoute);
 app.use(`${basePath}/product/category`, productCategoryRoute);
 app.use(`${basePath}/cart`, cartRoute);
+app.use(`${basePath}/junk-cart/leads`, junkCartLeadsRoute);
 app.use(`${basePath}/order`, orderRoute);
 
 // Error Handler

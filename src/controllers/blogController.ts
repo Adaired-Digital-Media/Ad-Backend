@@ -64,9 +64,11 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 // ********** Read Blog *********
+
 const readBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { identifier } = req.params;
+    const { limit = 6, skip = 0 } = req.query; // Default limit is 10, skip is 0
 
     try {
       let blog;
@@ -85,8 +87,17 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
 
         return res.status(200).json(blog);
       } else {
-        // If no identifier is provided, return all posts
-        const posts = await Blog.find().lean();
+        // Parse `limit` and `skip` as numbers
+        const parsedLimit = Math.max(Number(limit), 1); // Ensure at least 1
+        const parsedSkip = Math.max(Number(skip), 0);   // Ensure non-negative
+
+        // Fetch all posts with pagination and sorting (newest to oldest)
+        const posts = await Blog.find()
+          .sort({ createdAt: -1 }) // Sort by createdAt descending
+          .skip(parsedSkip)
+          .limit(parsedLimit)
+          .lean();
+
         return res.status(200).json(posts);
       }
     } catch (error) {

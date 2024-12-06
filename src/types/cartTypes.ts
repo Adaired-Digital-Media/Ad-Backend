@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 
 export interface CartProduct {
+  _id?: Types.ObjectId;
   productId: Types.ObjectId;
   productName: string;
   quantity: number;
@@ -17,6 +18,16 @@ export interface CartProduct {
 
 export interface CartTypes {
   userId: Types.ObjectId;
+  products: CartProduct[];
+  totalQuantity: number;
+  totalPrice: number;
+  status: "Unpaid" | "Pending" | "Completed" | "Canceled";
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface JunkCartTypes {
+  userId: string;
   products: CartProduct[];
   totalQuantity: number;
   totalPrice: number;
