@@ -26,7 +26,14 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 dotenv.config();
-app.use(express.json());
+// Middleware for all other routes
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/v2/orders/stripe-webhook") {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
@@ -71,7 +78,7 @@ app.use(`${basePath}/product/form`, productFormRoute);
 app.use(`${basePath}/product/category`, productCategoryRoute);
 app.use(`${basePath}/cart`, cartRoute);
 app.use(`${basePath}/junk-cart/leads`, junkCartLeadsRoute);
-app.use(`${basePath}/order`, orderRoute);
+app.use(`${basePath}/orders`, orderRoute);
 
 // Error Handler
 app.use(errorHandler);

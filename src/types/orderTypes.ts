@@ -22,8 +22,14 @@ export interface OrderTypes extends Document {
   invoiceId: string;
   zohoInvoiceId: string;
   paymentUrl: string;
-  status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
-  paymentStatus: "Unpaid" | "Paid" | "Refunded";
+  status:
+    | "Pending"
+    | "Processing"
+    | "Confirmed"
+    | "Cancelled"
+    | "Completed"
+    | "Failed";
+  paymentStatus: "Unpaid" | "Paid" | "Refunded" | "Failed";
   paymentMethod: "Razorpay" | "Stripe";
   paymentDate: Date;
   createdAt?: Date;
