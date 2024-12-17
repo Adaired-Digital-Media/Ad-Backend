@@ -7,7 +7,7 @@ const UserSchema = new Schema<UserTypes>(
     name: {
       type: String,
       required: true,
-      trim: true,
+      trim: true
     },
     userName: { type: String },
     email: {
@@ -15,7 +15,7 @@ const UserSchema = new Schema<UserTypes>(
       required: true,
       unique: true,
       lowercase: true,
-      trim: true,
+      trim: true
     },
     password: { type: String },
     contact: { type: String },
@@ -23,59 +23,43 @@ const UserSchema = new Schema<UserTypes>(
     role: {
       type: Schema.Types.ObjectId,
       ref: "Role",
-      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8"),
+      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8")
     },
     googleId: {
       type: String,
       unique: true,
-      sparse: true,
+      sparse: true
     },
     appleId: {
       type: String,
       unique: true,
-      sparse: true,
+      sparse: true
     },
     orderHistory: [
-      {
-        orderId: { type: Schema.Types.ObjectId, ref: "Order" },
-        status: {
-          type: String,
-          enum: ["Pending", "Shipped", "Delivered", "Canceled"],
-          default: "Pending",
-        },
-        dateOrdered: { type: Date, default: Date.now },
-        items: [
-          {
-            productId: { type: Schema.Types.ObjectId, ref: "Product" },
-            quantity: { type: Number, required: true },
-            price: { type: Number, required: true },
-          },
-        ],
-        totalAmount: { type: Number, required: true },
-      },
+      { orderId: { type: Schema.Types.ObjectId, ref: "Order", default: null } }
     ],
     cart: {
       type: Schema.Types.ObjectId,
       ref: "Cart",
-      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8"),
+      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8")
     },
     wishlist: {
       type: [
         {
           productId: { type: Schema.Types.ObjectId, ref: "Product" },
-          dateAdded: { type: Date, default: Date.now },
-        },
+          dateAdded: { type: Date, default: Date.now }
+        }
       ],
-      default: [],
+      default: []
     },
     userStatus: {
       type: Boolean,
-      default: false,
+      default: false
     },
     refreshToken: {
       type: String,
-      default: null,
-    },
+      default: null
+    }
   },
   { timestamps: true }
 );

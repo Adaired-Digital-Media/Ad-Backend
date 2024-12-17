@@ -8,14 +8,14 @@ import { validationResult } from "express-validator";
 // Function to generate access token
 const generateAccessToken = (userId: string, expiresIn: string) => {
   return jwt.sign({ _id: userId }, process.env.JWT_SECRET as string, {
-    expiresIn, // Short-lived token
+    expiresIn // Short-lived token
   });
 };
 
 // Function to generate refresh token
 const generateRefreshToken = (userId: string, expiresIn: string) => {
   return jwt.sign({ _id: userId }, process.env.JWT_REFRESH_SECRET as string, {
-    expiresIn, // Long-lived token
+    expiresIn // Long-lived token
   });
 };
 
@@ -29,7 +29,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         message: "Invalid input",
-        errors: errors.array(),
+        errors: errors.array()
       });
     }
 
@@ -50,7 +50,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       userName: email.split("@")[0].toLowerCase(),
       password: hashedPassword,
       contact,
-      userStatus,
+      userStatus
     });
 
     // Check if Admin
@@ -72,7 +72,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     res.status(201).json({
       accessToken,
       refreshToken,
-      user,
+      user
     });
   } catch (error) {
     next(error);
@@ -89,7 +89,7 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         message: "Invalid input",
-        errors: errors.array(),
+        errors: errors.array()
       });
     }
 
@@ -148,19 +148,21 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Get User Data With Role and Permissions
+
+    // Get User Data With Role, Permissions, and Cart
     const userData = await User.aggregate([
       {
         $match: {
-          email: user.email,
-        },
+          email: user.email
+        }
       },
       {
         $lookup: {
           from: "roles",
           localField: "role",
           foreignField: "_id",
-          as: "role",
-        },
+          as: "role"
+        }
       },
       {
         $project: {
@@ -175,28 +177,32 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
             $cond: {
               if: { $isArray: "$role" },
               then: { $arrayElemAt: ["$role", 0] },
-              else: null,
-            },
+              else: null
+            }
           },
-        },
+        }
       },
       {
         $addFields: {
           role: {
-            role: "$role.role",
+            role: "$role.role"
           },
-        },
-      },
+        }
+      }
     ]);
 
     res.status(200).json({
       message: "Login successful",
       accessToken,
       refreshToken,
-      userData: userData[0],
+      userData: userData[0]
     });
   } catch (error) {
-    next(error);
+    if (error instanceof Error) {
+      next(new CustomError(500, error.message));
+    } else {
+      next(new CustomError(500, "An unknown error occurred."));
+    }
   }
 };
 
@@ -234,7 +240,7 @@ const refreshToken = async (
 
     res.status(200).json({
       accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
+      refreshToken: newRefreshToken
     });
   } catch (error) {
     next(error);
@@ -269,16 +275,16 @@ const currentUser = async (req: Request, res: Response, next: NextFunction) => {
     const userData = await User.aggregate([
       {
         $match: {
-          email: user.email,
-        },
+          email: user.email
+        }
       },
       {
         $lookup: {
           from: "roles",
           localField: "role",
           foreignField: "_id",
-          as: "role",
-        },
+          as: "role"
+        }
       },
       {
         $project: {
@@ -293,18 +299,18 @@ const currentUser = async (req: Request, res: Response, next: NextFunction) => {
             $cond: {
               if: { $isArray: "$role" },
               then: { $arrayElemAt: ["$role", 0] },
-              else: null,
-            },
-          },
-        },
+              else: null
+            }
+          }
+        }
       },
       {
         $addFields: {
           role: {
-            role: "$role.role",
-          },
-        },
-      },
+            role: "$role.role"
+          }
+        }
+      }
     ]);
     res.status(200).json(userData[0]);
   } catch (error) {

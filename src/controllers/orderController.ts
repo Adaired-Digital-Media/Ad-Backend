@@ -8,7 +8,7 @@ import { Types } from "mongoose";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2024-11-20.acacia"
 });
 
 // *********************************************************
@@ -37,20 +37,20 @@ export const createOrder = async (
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      line_items: cart.products.map((product) => ({
+      line_items: cart.products.map(product => ({
         price_data: {
           currency: "usd",
           product_data: {
-            name: product.productName,
+            name: product.productName
           },
-          unit_amount: Math.round(product.totalPrice * 100),
+          unit_amount: Math.round(product.totalPrice * 100)
         },
-        quantity: product.quantity,
+        quantity: product.quantity
       })),
       mode: "payment",
       success_url: `${process.env.LOCAL_DOMAIN}/success`,
       cancel_url: `${process.env.LOCAL_DOMAIN}/cancel`,
-      metadata: { userId, couponId },
+      metadata: { userId, couponId }
     });
 
     const newOrder = new Order({
@@ -66,7 +66,7 @@ export const createOrder = async (
       paymentUrl: session.url,
       status: "Pending",
       paymentStatus: "Unpaid",
-      paymentMethod,
+      paymentMethod
     });
 
     await newOrder.save();
@@ -74,7 +74,7 @@ export const createOrder = async (
     res.status(201).json({
       message: "Order created successfully.",
       data: newOrder,
-      sessionId: session.id,
+      sessionId: session.id
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -120,7 +120,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           {
             status: "Confirmed",
             paymentStatus: "Paid",
-            paymentDate: Date.now(),
+            paymentDate: Date.now()
           },
           { new: true }
         );
@@ -137,35 +137,35 @@ export const stripeWebhook = async (req: Request, res: Response) => {
 
       // Create a new checkout session if expired
       const cart = await Cart.findOne({
-        userId: expiredSession.metadata.userId,
+        userId: expiredSession.metadata.userId
       });
       if (cart && cart.products.length > 0) {
         const newSession = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
-          line_items: cart.products.map((product) => ({
+          line_items: cart.products.map(product => ({
             price_data: {
               currency: "usd",
               product_data: {
-                name: product.productName,
+                name: product.productName
               },
-              unit_amount: Math.round(product.totalPrice * 100),
+              unit_amount: Math.round(product.totalPrice * 100)
             },
-            quantity: product.quantity,
+            quantity: product.quantity
           })),
           mode: "payment",
           success_url: `${process.env.LOCAL_DOMAIN}/success`,
           cancel_url: `${process.env.LOCAL_DOMAIN}/cancel`,
           metadata: {
             userId: expiredSession.metadata.userId,
-            couponId: expiredSession.metadata.couponId,
-          },
+            couponId: expiredSession.metadata.couponId
+          }
         });
 
         await Order.findOneAndUpdate(
           { paymentId: expiredSession.id },
           {
             paymentUrl: newSession.url,
-            paymentId: newSession.id,
+            paymentId: newSession.id
           },
           { new: true }
         );
