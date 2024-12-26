@@ -4,6 +4,7 @@ export interface CartProduct {
   _id?: Types.ObjectId;
   productId: Types.ObjectId;
   productName: string;
+  productImage: string;
   quantity: number;
   wordCount?: number;
   userName?: string;
