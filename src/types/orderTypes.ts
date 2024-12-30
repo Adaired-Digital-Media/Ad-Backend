@@ -12,6 +12,7 @@ interface OrderProduct {
 // Define the main Order type
 export interface OrderTypes extends Document {
   userId: Types.ObjectId;
+  orderNumber?: string;
   products: OrderProduct[];
   totalQuantity: number;
   totalPrice: number;

@@ -5,6 +5,7 @@ import { OrderTypes } from "../types/orderTypes";
 const OrderSchema = new Schema<OrderTypes>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    orderNumber: { type: String },
     products: [
       {
         productId: {
@@ -12,7 +13,9 @@ const OrderSchema = new Schema<OrderTypes>(
           ref: "Product",
           required: true,
         },
+        category: { type: String, required: true },
         productName: { type: String, required: true },
+        productImage: { type: String, required: true },
         wordCount: { type: Number, min: 100 },
         quantity: { type: Number, required: true, min: 1 },
         name: { type: String },

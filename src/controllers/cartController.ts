@@ -76,7 +76,13 @@ export const getUserCart = async (
 
     const cart = await Cart.findOne({
       userId: customerId,
-    }).populate("products.productId");
+    }).populate({
+      path: "products.productId",
+      populate: {
+        path: "subCategory",
+        select: "name", 
+      },
+    });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
