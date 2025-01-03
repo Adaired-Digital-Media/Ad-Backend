@@ -2,6 +2,7 @@ import JunkCartLeads from "../models/junkCartLeadsModel";
 import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import { generateUserId } from "../helpers/generateGuestId";
+import { CustomError } from "../middlewares/error";
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
@@ -38,17 +39,7 @@ export const syncOrAddToJunkCart = async (
 
     // Add or update cart items
     cartItems.forEach((newItem: any) => {
-      const existingItem = cart.products.find(
-        (product: any) => product.productId === newItem.productId
-      );
-      if (existingItem) {
-        // Update quantity and price for existing items
-        existingItem.quantity += newItem.quantity;
-        existingItem.totalPrice += newItem.totalPrice;
-      } else {
-        // Add new item
-        cart.products.push(newItem);
-      }
+      cart.products.push(newItem);
     });
 
     // Recalculate total quantity and price
@@ -65,13 +56,59 @@ export const syncOrAddToJunkCart = async (
     await cart.save();
 
     res.status(200).json({
-      message: "Cart updated successfully",
-      guestId: userId, // Returning the guest ID for tracking
+      message: "Cart Created successfully",
+      guestId: user,
       data: cart,
     });
-  } catch (error) {
-    console.error(error);
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
+  }
+};
+
+// ***************************************
+// ********* Get Cart for a User *********
+// ***************************************
+export const getUserCart = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { tempUserId } = req.query;
+
+    if (tempUserId) {
+      const cart = await JunkCartLeads.findOne({
+        userId: tempUserId,
+      }).populate({
+        path: "products.productId",
+        populate: {
+          path: "subCategory",
+          select: "name",
+        },
+      });
+      if (!cart) {
+        return res.status(404).json({ message: "Cart not found" });
+      }
+      
+      res.status(200).json({
+        message: "Cart data fetched successfully",
+        data: cart,
+      });
+    } else {
+      const carts = await JunkCartLeads.find().populate({
+        path: "products.productId",
+        populate: {
+          path: "subCategory",
+          select: "name",
+        },
+      });
+      res.status(200).json({
+        message: "Cart data fetched successfully",
+        data: carts,
+      });
+    }
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -84,7 +121,7 @@ export const updateCart = async (
   next: NextFunction
 ) => {
   const { userId } = req.query;
-  const { productId, ...updateFields } = req.body;
+  const { ...updateFields } = req.body;
 
   try {
     // Check if the cart exists
@@ -98,7 +135,7 @@ export const updateCart = async (
 
     // Find the product to update
     const product = cart.products.find(
-      (p) => p.productId.toString() === productId
+      (p) => p._id.toString() === updateFields.productEntryId
     );
     if (!product) {
       return res.status(404).json({ message: "Product not found in cart" });
@@ -216,36 +253,3 @@ export const clearCart = async (
     next(error);
   }
 };
-
-// // ***************************************
-// // ********* Get Cart for a User *********
-// // ***************************************
-// export const getUserCart = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const { userId } = req;
-//     const { customerId } = req.query;
-
-//     // Check Permission
-//     const permissionCheck = await checkPermission(userId, "carts", 1);
-//     if (!permissionCheck) {
-//       return res.status(403).json({ message: "Permission denied" });
-//     }
-
-//     const cart = await JunkCartLeads.findOne({
-//       userId: customerId,
-//     }).populate("products.productId");
-//     if (!cart) {
-//       return res.status(404).json({ message: "Cart not found" });
-//     }
-//     res.status(200).json({
-//       message: "Cart data fetched successfully",
-//       data: cart,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };

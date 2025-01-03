@@ -38,6 +38,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
 const allowedOrigins = [
+  "https://rwf4p3bf-3000.inc1.devtunnels.ms/",
   "https://dashboard-adaired.vercel.app",
   "http://localhost:3000",
   "http://localhost:3001",
