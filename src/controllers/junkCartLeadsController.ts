@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import { generateUserId } from "../helpers/generateGuestId";
 import { CustomError } from "../middlewares/error";
+import { Types } from "mongoose";
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
@@ -43,10 +44,7 @@ export const syncOrAddToJunkCart = async (
     });
 
     // Recalculate total quantity and price
-    cart.totalQuantity = cart.products.reduce(
-      (acc: number, product: any) => acc + product.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
     cart.totalPrice = cart.products.reduce(
       (acc: number, product: any) => acc + product.totalPrice,
       0
@@ -89,7 +87,7 @@ export const getUserCart = async (
       if (!cart) {
         return res.status(404).json({ message: "Cart not found" });
       }
-      
+
       res.status(200).json({
         message: "Cart data fetched successfully",
         data: cart,
@@ -134,9 +132,11 @@ export const updateCart = async (
     }
 
     // Find the product to update
-    const product = cart.products.find(
-      (p) => p._id.toString() === updateFields.productEntryId
+    const product = cart.products.find((p) =>
+      p._id.equals(new Types.ObjectId(updateFields.productEntryId))
     );
+    console.log("Product Found -> ", product);
+    console.log("Updated Content -> ", updateFields)
     if (!product) {
       return res.status(404).json({ message: "Product not found in cart" });
     }
@@ -149,11 +149,8 @@ export const updateCart = async (
     });
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
-    cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.totalPrice * p.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
+    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
 
     // Save the updated cart
     await cart.save();

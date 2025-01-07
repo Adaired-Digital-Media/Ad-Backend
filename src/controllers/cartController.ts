@@ -1,4 +1,6 @@
 import Cart from "../models/cartModel";
+import Product from "../models/productModel";
+import Order from "../models/orderModel";
 import checkPermission from "../helpers/authHelper";
 import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
@@ -33,10 +35,42 @@ export const syncOrAddToCart = async (
       }
     }
 
-    // Add all cart items as new entries
-    cartItems.forEach((item: any) => {
+    // Check for free products and prevent a user from adding it more than once
+    for (const item of cartItems) {
+      const product = await Product.findById(item.productId);
+
+      // If the product is free and the user has already bought it, return an error
+      if (product?.isFreeProduct) {
+        const alreadyBought = cart.products.some((cartItem: any) => {
+          return cartItem.productId.toString() === item.productId.toString();
+        });
+
+        if (alreadyBought) {
+          return next(
+            new CustomError(
+              400,
+              "You cannot add this free product to the cart more than once."
+            )
+          );
+        }
+      }
+
+      // Check if the user has already placed an order for the product with paymentStatus === true
+      const existingOrder = await Order.findOne({
+        userId,
+        "products.productId": item.productId,
+        paymentStatus: true,
+      });
+
+      if (existingOrder) {
+        return next(
+          new CustomError(400, "You have already purchased this free product.")
+        );
+      }
+
+      // Add the item to the cart
       cart.products.push(item);
-    });
+    }
 
     // Recalculate total quantity and price
     cart.totalQuantity = cart.products.reduce(
@@ -52,7 +86,7 @@ export const syncOrAddToCart = async (
     // Save the cart
     await cart.save();
     res.status(200).json({
-      message: "Cart Created successfully",
+      message: "Cart Updated successfully",
       data: cart,
     });
   } catch (error: any) {
@@ -108,7 +142,7 @@ export const getUserCart = async (
         data: cart,
       });
     }
-  } catch (error:any) {
+  } catch (error: any) {
     next(new CustomError(500, error.message));
   }
 };

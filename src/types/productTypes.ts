@@ -6,6 +6,7 @@ export type ProductTypes = {
   description: string;
   category: Types.ObjectId;
   subCategory: Types.ObjectId;
+  minimumWords?: number;
   minimumQuantity?: number;
   slug: string;
   pricePerUnit: number;
@@ -20,7 +21,7 @@ export type ProductTypes = {
   metaDescription?: string;
   canonicalLink?: string;
   status: "Active" | "Inactive" | "Archived" | "Out of Stock";
-  isFeatured: boolean;
+  isFreeProduct: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt?: Date;

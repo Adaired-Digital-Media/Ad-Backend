@@ -11,6 +11,7 @@ const ProductSchema = new Schema<ProductTypes>(
       { type: Schema.Types.ObjectId, ref: "ProductCategory", required: true },
     ],
     minimumQuantity: { type: Number, default: 1 },
+    minimumWords: { type: Number, default: null },
     slug: { type: String, unique: true },
     pricePerUnit: { type: Number, required: true },
     pricingType: {
@@ -32,7 +33,7 @@ const ProductSchema = new Schema<ProductTypes>(
       enum: ["Active", "Inactive", "Archived", "Out of Stock"],
       default: "Active",
     },
-    isFeatured: { type: Boolean, default: false },
+    isFreeProduct: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
