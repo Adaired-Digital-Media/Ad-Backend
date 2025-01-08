@@ -73,13 +73,9 @@ export const syncOrAddToCart = async (
     }
 
     // Recalculate total quantity and price
-    cart.totalQuantity = cart.products.reduce(
-      (acc: number, product: any) => acc + product.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
     cart.totalPrice = cart.products.reduce(
-      (acc: number, product: any) =>
-        acc + product.totalPrice * product.quantity,
+      (acc: number, product: any) => acc + product.totalPrice,
       0
     );
 
