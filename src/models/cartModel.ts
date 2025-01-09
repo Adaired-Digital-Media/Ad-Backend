@@ -13,6 +13,7 @@ const CartSchema = new Schema<CartTypes>(
         },
         category: { type: String, required: true },
         productName: { type: String, required: true },
+        productSlug: { type: String, required: true },
         productImage: { type: String, required: true },
         wordCount: { type: Number, min: 100 },
         quantity: { type: Number, required: true, min: 1 },

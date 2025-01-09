@@ -37,9 +37,9 @@ const OrderSchema = new Schema<OrderTypes>(
     discountedPrice: { type: Number, required: true },
     couponId: { type: Schema.Types.ObjectId, ref: "Coupon", default: null },
     couponDiscount: { type: Number, default: 0 },
-    paymentId: { type: String, required: true },
+    paymentId: { type: String },
     invoiceId: { type: String, required: true },
-    paymentUrl: { type: String, required: true },
+    paymentUrl: { type: String },
     status: {
       type: String,
       enum: [

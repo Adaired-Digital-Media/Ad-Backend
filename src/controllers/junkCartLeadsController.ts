@@ -135,8 +135,7 @@ export const updateCart = async (
     const product = cart.products.find((p) =>
       p._id.equals(new Types.ObjectId(updateFields.productEntryId))
     );
-    console.log("Product Found -> ", product);
-    console.log("Updated Content -> ", updateFields)
+
     if (!product) {
       return res.status(404).json({ message: "Product not found in cart" });
     }
@@ -172,20 +171,21 @@ export const deleteProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req.query;
-  const { customerId, productId } = req.query;
+  const { userId, productEntryId } = req.query;
+
 
   try {
     // Check if the cart exists
-    const cart = await JunkCartLeads.findOne({ userId: customerId || userId });
+    const cart = await JunkCartLeads.findOne({ userId: userId });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
 
     // Find the product to remove
-    const productIndex = cart.products.findIndex(
-      (p) => p.productId.toString() === productId
+    const productIndex = cart.products.findIndex((p) =>
+      p._id.equals(new Types.ObjectId(productEntryId as string))
     );
+
     if (productIndex === -1) {
       return res.status(404).json({ message: "Product not found in cart" });
     }
@@ -194,11 +194,8 @@ export const deleteProduct = async (
     cart.products.splice(productIndex, 1);
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
-    cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.totalPrice * p.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
+    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
 
     // Save the updated cart
     await cart.save();

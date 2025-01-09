@@ -3,32 +3,24 @@ import { Types } from "mongoose";
 export interface CartProduct {
   _id?: Types.ObjectId;
   productId: Types.ObjectId;
+  category:string;
   productName: string;
+  productSlug: string;
   productImage: string;
-  quantity: number;
   wordCount?: number;
-  userName?: string;
+  quantity: number;
+  additionalInfo?: string;
+  name?: string;
   email?: string;
   phone?: string;
   pricePerUnit: number;
   totalPrice: number;
-  additionalInfo?: string;
   orderType: "OneTime" | "Monthly";
   addedAt: Date;
 }
 
 export interface CartTypes {
-  userId: Types.ObjectId;
-  products: CartProduct[];
-  totalQuantity: number;
-  totalPrice: number;
-  status: "Unpaid" | "Pending" | "Completed" | "Canceled";
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface JunkCartTypes {
-  userId: string;
+  userId: Types.ObjectId | string;
   products: CartProduct[];
   totalQuantity: number;
   totalPrice: number;

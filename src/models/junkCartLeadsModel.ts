@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
-import { JunkCartTypes } from "../types/cartTypes";
+import { CartTypes } from "../types/cartTypes";
 
-const JunkCartSchema = new Schema<JunkCartTypes>(
+const JunkCartSchema = new Schema<CartTypes>(
   {
     userId: { type: String, default: null },
     products: [
@@ -13,6 +13,7 @@ const JunkCartSchema = new Schema<JunkCartTypes>(
         },
         category: { type: String, required: true },
         productName: { type: String, required: true },
+        productSlug: { type: String, required: true },
         productImage: { type: String, required: true },
         wordCount: { type: Number, min: 100 },
         quantity: { type: Number, required: true, min: 1 },
@@ -43,6 +44,6 @@ const JunkCartSchema = new Schema<JunkCartTypes>(
 
 JunkCartSchema.index({ userId: 1 });
 
-const Cart = mongoose.model<JunkCartTypes>("JunkCartLeads", JunkCartSchema);
+const Cart = mongoose.model<CartTypes>("JunkCartLeads", JunkCartSchema);
 
 export default Cart;

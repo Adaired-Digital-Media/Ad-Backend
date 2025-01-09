@@ -5,6 +5,7 @@ import checkPermission from "../helpers/authHelper";
 import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import { CustomError } from "../middlewares/error";
+import { Types } from "mongoose";
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
@@ -18,6 +19,10 @@ export const syncOrAddToCart = async (
     const { userId, body } = req;
     const { cartItems } = body;
 
+    if (!cartItems || cartItems.length === 0) {
+      return next(new CustomError(400, "Cart items cannot be empty."));
+    }
+
     // Find the user's cart or create one if it doesn't exist
     let cart = await Cart.findOne({ userId });
     if (!cart) {
@@ -25,6 +30,8 @@ export const syncOrAddToCart = async (
       cart = new Cart({
         userId: body.userId || userId,
         products: [],
+        totalQuantity: 0,
+        totalPrice: 0,
       });
 
       // Find the user and set their cart reference
@@ -39,33 +46,43 @@ export const syncOrAddToCart = async (
     for (const item of cartItems) {
       const product = await Product.findById(item.productId);
 
-      // If the product is free and the user has already bought it, return an error
-      if (product?.isFreeProduct) {
-        const alreadyBought = cart.products.some((cartItem: any) => {
-          return cartItem.productId.toString() === item.productId.toString();
-        });
+      if (!product) {
+        return next(
+          new CustomError(404, `Product with ID ${item.productId} not found.`)
+        );
+      }
 
-        if (alreadyBought) {
+      // Handle free products
+      if (product.isFreeProduct) {
+        // Check if the product is already in the cart
+        const alreadyInCart = cart.products.some(
+          (cartItem: any) => cartItem.productId.toString() === item.productId
+        );
+
+        if (alreadyInCart) {
           return next(
             new CustomError(
               400,
-              "You cannot add this free product to the cart more than once."
+              `You cannot add the free product (${product.name}) to the cart more than once.`
             )
           );
         }
-      }
 
-      // Check if the user has already placed an order for the product with paymentStatus === true
-      const existingOrder = await Order.findOne({
-        userId,
-        "products.productId": item.productId,
-        paymentStatus: true,
-      });
+        // Check if the user has already purchased this product
+        const existingOrder = await Order.findOne({
+          userId,
+          "products.productId": item.productId,
+          paymentStatus: "Paid",
+        });
 
-      if (existingOrder) {
-        return next(
-          new CustomError(400, "You have already purchased this free product.")
-        );
+        if (existingOrder) {
+          return next(
+            new CustomError(
+              400,
+              `You have already purchased the free product (${product.name}).`
+            )
+          );
+        }
       }
 
       // Add the item to the cart
@@ -182,11 +199,8 @@ export const updateCart = async (
     });
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
-    cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.totalPrice * p.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
+    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
 
     // Save the updated cart
     await cart.save();
@@ -209,18 +223,18 @@ export const deleteProduct = async (
   next: NextFunction
 ) => {
   const { userId } = req;
-  const { customerId, productId } = req.query;
+  const { productEntryId } = req.query;
 
   try {
     // Check if the cart exists
-    const cart = await Cart.findOne({ userId: customerId || userId });
+    const cart = await Cart.findOne({ userId: userId });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
 
     // Find the product to remove
-    const productIndex = cart.products.findIndex(
-      (p) => p.productId.toString() === productId
+    const productIndex = cart.products.findIndex((p) =>
+      p._id.equals(new Types.ObjectId(productEntryId as string))
     );
     if (productIndex === -1) {
       return res.status(404).json({ message: "Product not found in cart" });
@@ -230,11 +244,8 @@ export const deleteProduct = async (
     cart.products.splice(productIndex, 1);
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.reduce((acc, p) => acc + p.quantity, 0);
-    cart.totalPrice = cart.products.reduce(
-      (acc, p) => acc + p.totalPrice * p.quantity,
-      0
-    );
+    cart.totalQuantity = cart.products.length;
+    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
 
     // Save the updated cart
     await cart.save();

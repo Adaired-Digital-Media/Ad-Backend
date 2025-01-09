@@ -15,6 +15,90 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 // *********************************************************
 // ************ Create an Order and Initiate Payment *******
 // *********************************************************
+// export const createOrder = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId } = req;
+//     const { couponId, paymentMethod } = req.body;
+
+//     const cart = await Cart.findOne({ userId });
+//     if (!cart || cart.products.length === 0) {
+//       return res.status(400).json({ message: "Cart is empty." });
+//     }
+
+//     let totalPrice = cart.totalPrice;
+//     let couponDiscount = 0;
+//     if (couponId) {
+//       // Apply coupon logic here
+//     }
+//     const discountedPrice = totalPrice - couponDiscount;
+
+//     // Generate order number based on current date and time
+//     const now = new Date();
+//     const orderNumber = `${String(now.getDate()).padStart(2, "0")}${String(
+//       now.getMonth() + 1
+//     ).padStart(2, "0")}${String(now.getFullYear()).slice(-2)}${String(
+//       now.getHours()
+//     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+//     const session = await stripe.checkout.sessions.create({
+//       payment_method_types: ["card"],
+//       line_items: cart.products.map((product) => ({
+//         price_data: {
+//           currency: "usd",
+//           product_data: {
+//             name: product.productName,
+//           },
+//           unit_amount: Math.round(
+//             (product.wordCount / 100) * product.pricePerUnit * 100
+//           ),
+//         },
+//         quantity: product.quantity,
+//       })),
+//       mode: "payment",
+//       success_url: `${process.env.LOCAL_DOMAIN}/success`,
+//       cancel_url: `${process.env.LOCAL_DOMAIN}/cancel`,
+//       metadata: { userId, couponId },
+//     });
+
+//     const newOrder = new Order({
+//       orderNumber: orderNumber,
+//       userId,
+//       products: cart.products,
+//       totalQuantity: cart.totalQuantity,
+//       totalPrice,
+//       discountedPrice,
+//       couponId: couponId || null,
+//       couponDiscount,
+//       paymentId: session.id,
+//       invoiceId: "Invoice_" + Date.now(),
+//       paymentUrl: session.url,
+//       status: "Pending",
+//       paymentStatus: "Unpaid",
+//       paymentMethod,
+//     });
+
+//     await newOrder.save();
+
+//     res.status(201).json({
+//       message: "Order created successfully.",
+//       data: newOrder,
+//       sessionId: session.id,
+//     });
+//   } catch (error) {
+//     if (error instanceof Error) {
+//       next(new CustomError(500, error.message));
+//     } else {
+//       next(new CustomError(500, "An unknown error occurred."));
+//     }
+//   }
+// };
+// *********************************************************
+// ************ Create an Order and Initiate Payment *******
+// *********************************************************
 export const createOrder = async (
   req: Request,
   res: Response,
@@ -44,6 +128,38 @@ export const createOrder = async (
       now.getHours()
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 
+    if (discountedPrice === 0) {
+      // Directly create the order for free transactions
+      const newOrder = new Order({
+        orderNumber: orderNumber,
+        userId,
+        products: cart.products,
+        totalQuantity: cart.totalQuantity,
+        totalPrice,
+        discountedPrice,
+        couponId: couponId || null,
+        couponDiscount,
+        paymentId: null,
+        invoiceId: "Invoice_" + Date.now(),
+        paymentUrl: null,
+        status: "Confirmed",
+        paymentStatus: "Paid", // For free orders, mark as paid
+        paymentMethod,
+      });
+
+      await newOrder.save();
+
+      // Empty the cart after successful order creation
+      cart.products = [];
+      cart.totalPrice = 0;
+      cart.totalQuantity = 0;
+      await cart.save();
+
+      // Redirect to the success page
+      return res.redirect(`${process.env.LOCAL_DOMAIN}/success`);
+    }
+
+    // Stripe session creation for paid transactions
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: cart.products.map((product) => ({
@@ -52,7 +168,9 @@ export const createOrder = async (
           product_data: {
             name: product.productName,
           },
-          unit_amount: Math.round(product.pricePerUnit * 100),
+          unit_amount: Math.round(
+            (product.wordCount / 100) * product.pricePerUnit * 100
+          ),
         },
         quantity: product.quantity,
       })),
