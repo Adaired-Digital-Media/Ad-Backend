@@ -156,7 +156,7 @@ export const createOrder = async (
       await cart.save();
 
       // Redirect to the success page
-      return res.redirect(`${process.env.LOCAL_DOMAIN}/success`);
+      return res.redirect(`${process.env.LIVE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`);
     }
 
     // Stripe session creation for paid transactions
@@ -175,8 +175,8 @@ export const createOrder = async (
         quantity: product.quantity,
       })),
       mode: "payment",
-      success_url: `${process.env.LOCAL_DOMAIN}/success`,
-      cancel_url: `${process.env.LOCAL_DOMAIN}/cancel`,
+      success_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+      cancel_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions/cancel`,
       metadata: { userId, couponId },
     });
 
@@ -198,6 +198,12 @@ export const createOrder = async (
     });
 
     await newOrder.save();
+
+    // Empty the cart after successful order creation
+    cart.products = [];
+    cart.totalPrice = 0;
+    cart.totalQuantity = 0;
+    await cart.save();
 
     res.status(201).json({
       message: "Order created successfully.",
