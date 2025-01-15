@@ -782,7 +782,7 @@ export const validateCreateProduct = [
 
   check("pricingType")
     .optional()
-    .isIn(["perWord", "perPost", "perReview", "fixed"])
+    .isIn(["perWord", "perPost", "perReview", "perMonth", "perQuantity"])
     .withMessage(
       "Pricing type must be one of 'perWord', 'perPost', 'perReview', or 'fixed'"
     ),

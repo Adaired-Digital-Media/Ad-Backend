@@ -16,7 +16,7 @@ const ProductSchema = new Schema<ProductTypes>(
     pricePerUnit: { type: Number, required: true },
     pricingType: {
       type: String,
-      enum: ["perWord", "perPost", "perReview", "perMonth", "oneTime"],
+      enum: ["perWord", "perPost", "perReview", "perMonth", "perQuantity"],
       default: "perWord",
     },
     stock: { type: Number, default: 0 },

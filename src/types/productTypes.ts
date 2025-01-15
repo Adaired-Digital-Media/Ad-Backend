@@ -10,7 +10,7 @@ export type ProductTypes = {
   minimumQuantity?: number;
   slug: string;
   pricePerUnit: number;
-  pricingType: "perWord" | "perPost" | "perReview" | "perMonth" | "oneTime";
+  pricingType: "perWord" | "perPost" | "perReview" | "perMonth" | "perQuantity";
   stock: number;
   images: string[];
   tags?: string[];

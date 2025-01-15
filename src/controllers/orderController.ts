@@ -176,7 +176,7 @@ export const createOrder = async (
       })),
       mode: "payment",
       success_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
-      cancel_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions/cancel`,
+      cancel_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions`,
       metadata: { userId, couponId },
     });
 

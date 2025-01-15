@@ -304,3 +304,36 @@ export const clearCart = async (
     next(error);
   }
 };
+
+// ***************************************
+// ********* Get Own Cart Data ***********
+// ***************************************
+
+export const getOwnCart = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+
+    const cart = await Cart.findOne({
+      userId,
+    }).populate({
+      path: "products.productId",
+      populate: {
+        path: "subCategory",
+        select: "name",
+      },
+    });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    return res.status(200).json({
+      message: "Cart data fetched successfully",
+      data: cart,
+    });
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
+  }
+};
