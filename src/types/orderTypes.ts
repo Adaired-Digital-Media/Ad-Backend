@@ -29,7 +29,6 @@ export interface OrderTypes extends Document {
     | "Confirmed"
     | "Cancelled"
     | "Completed"
-    | "Failed";
   paymentStatus: "Unpaid" | "Paid" | "Refunded" | "Failed";
   paymentMethod: "Razorpay" | "Stripe";
   paymentDate: Date;

@@ -4,7 +4,7 @@ import {
   syncOrAddToCart,
   updateCart,
   getUserCart,
-  clearCart,
+  emptyCart,
   deleteProduct,
   getOwnCart,
 } from "../controllers/cartController";
@@ -15,7 +15,7 @@ router.post("/add-product-or-sync-cart", verifyToken, syncOrAddToCart);
 router.get("/get-user-cart", verifyToken, getUserCart);
 router.patch("/update-cart", verifyToken, updateCart);
 router.delete("/delete-product", verifyToken, deleteProduct);
-router.delete("/clear-cart", verifyToken, clearCart);
+router.delete("/empty-cart", verifyToken, emptyCart);
 router.get("/get-own-cart", verifyToken, getOwnCart);
 
 export default router;

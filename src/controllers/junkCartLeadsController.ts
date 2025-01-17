@@ -173,7 +173,6 @@ export const deleteProduct = async (
 ) => {
   const { userId, productEntryId } = req.query;
 
-
   try {
     // Check if the cart exists
     const cart = await JunkCartLeads.findOne({ userId: userId });
@@ -210,9 +209,9 @@ export const deleteProduct = async (
 };
 
 // ***************************************
-// ************ Clear Cart ***************
+// ************ Empty Cart ***************
 // ***************************************
-export const clearCart = async (
+export const emptyCart = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -243,6 +242,27 @@ export const clearCart = async (
     await user.save();
 
     res.status(200).json({ message: "Cart cleared successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ***************************************
+// ************ Delete Cart ***************
+// ***************************************
+export const deleteCart = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { userId } = req.query;
+
+  try {
+    const cart = await JunkCartLeads.findOneAndDelete({ userId: userId });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    res.status(200).json({ message: "Cart Deleted Successfully" });
   } catch (error) {
     next(error);
   }

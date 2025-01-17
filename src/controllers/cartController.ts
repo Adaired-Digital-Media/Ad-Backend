@@ -100,7 +100,7 @@ export const syncOrAddToCart = async (
     await cart.save();
     res.status(200).json({
       message: "Cart Updated successfully",
-      data: cart,
+      cart,
     });
   } catch (error: any) {
     next(new CustomError(500, error.message));
@@ -260,9 +260,9 @@ export const deleteProduct = async (
 };
 
 // ***************************************
-// ************ Clear Cart ***************
+// ************ Empty Cart ***************
 // ***************************************
-export const clearCart = async (
+export const emptyCart = async (
   req: Request,
   res: Response,
   next: NextFunction

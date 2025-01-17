@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import connectDB from "./database/connectDB";
 import { errorHandler } from "./middlewares/error";
@@ -26,9 +26,11 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 dotenv.config();
+
 // Middleware for all other routes
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.originalUrl === "/api/v2/orders/stripe-webhook") {
+    // Skip JSON parsing for Stripe webhook
     next();
   } else {
     express.json()(req, res, next);
@@ -38,8 +40,10 @@ app.use(express.urlencoded({ extended: false }));
 
 // CORS Middleware
 const allowedOrigins = [
-  "https://rwf4p3bf-3000.inc1.devtunnels.ms/",
+  "https://rwf4p3bf-3000.inc1.devtunnels.ms",
   "https://dashboard-adaired.vercel.app",
+  "https://www.adaired.com",
+  "https://adaired.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",
@@ -58,8 +62,6 @@ const corsOptions = {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-  allowedHeaders: "Origin, X-Requested-With, Content-Type, Accept, Authorization",
   credentials: true,
 };
 
@@ -83,18 +85,20 @@ app.use(`${basePath}/cart`, cartRoute);
 app.use(`${basePath}/junk-cart/leads`, junkCartLeadsRoute);
 app.use(`${basePath}/orders`, orderRoute);
 
-// Error Handler
-app.use(errorHandler);
-
-// View Engine
-app.use("/static", express.static(path.join(__dirname + "/static")));
+// Static files and View Engine
+app.use("/static", express.static(path.join(__dirname + "static")));
 app.set("view engine", "ejs");
-app.set("views", __dirname + "/views");
+app.set("views", path.join(__dirname, "views"));
 
-app.get("/", (req: Request, res: Response) => {
+// Root Route
+app.get(`${basePath}/`, (req: Request, res: Response) => {
   res.render("index");
 });
 
+// Error Handler
+app.use(errorHandler);
+
+// Start Server
 const startServer = async () => {
   try {
     await connectDB();
