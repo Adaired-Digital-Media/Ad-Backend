@@ -29,7 +29,7 @@ export const createOrder = async (
       return res.status(400).json({ message: "Cart is empty." });
     }
 
-    console.log("Cart Data: ", cart)
+    console.log("Cart Data: ", cart);
 
     let totalPrice = cart.totalPrice;
     let couponDiscount = 0;
@@ -75,7 +75,7 @@ export const createOrder = async (
 
       // Redirect to the success page
       return res.redirect(
-        `${process.env.LIVE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
+        `${process.env.LOCAL_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
       );
     }
 
@@ -93,6 +93,9 @@ export const createOrder = async (
               ? (product.wordCount / 100) * product.pricePerUnit
               : product.pricePerUnit) * 100
           ),
+          // unit_amount: Math.round(
+          //   (product.wordCount / 100) * product.pricePerUnit
+          // ),
         },
         quantity: product.quantity,
       })),

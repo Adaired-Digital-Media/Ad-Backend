@@ -4,6 +4,7 @@ import User from "../models/userModel";
 import { generateUserId } from "../helpers/generateGuestId";
 import { CustomError } from "../middlewares/error";
 import { Types } from "mongoose";
+import Product from "../models/productModel";
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
@@ -26,6 +27,8 @@ export const syncOrAddToJunkCart = async (
       cart = new JunkCartLeads({
         userId: user,
         products: [],
+        totalQuantity: 0,
+        totalPrice: 0,
       });
 
       // Optionally link the cart to a User document, if applicable
@@ -38,10 +41,35 @@ export const syncOrAddToJunkCart = async (
       }
     }
 
-    // Add or update cart items
-    cartItems.forEach((newItem: any) => {
-      cart.products.push(newItem);
-    });
+    // Check for free products and prevent a user from adding it more than once
+    for (const item of cartItems) {
+      const product = await Product.findById(item.productId);
+
+      if (!product) {
+        return next(
+          new CustomError(404, `Product with ID ${item.productId} not found.`)
+        );
+      }
+
+      // Handle free products
+      if (product.isFreeProduct) {
+        // Check if the product is already in the cart
+        const alreadyInCart = cart.products.some(
+          (cartItem: any) => cartItem.productId.toString() === item.productId
+        );
+
+        if (alreadyInCart) {
+          return next(
+            new CustomError(
+              400,
+              `You cannot add the free product (${product.name}) to the cart more than once.`
+            )
+          );
+        }
+      }
+      // Add the item to the cart
+      cart.products.push(item);
+    }
 
     // Recalculate total quantity and price
     cart.totalQuantity = cart.products.length;
@@ -54,7 +82,7 @@ export const syncOrAddToJunkCart = async (
     await cart.save();
 
     res.status(200).json({
-      message: "Cart Created successfully",
+      message: "Product added successfully",
       guestId: user,
       data: cart,
     });

@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 export interface CartProduct {
   _id?: Types.ObjectId;
   productId: Types.ObjectId;
-  category:string;
+  category: string;
   productName: string;
   productSlug: string;
   productImage: string;
@@ -16,6 +16,7 @@ export interface CartProduct {
   pricePerUnit: number;
   totalPrice: number;
   orderType: "OneTime" | "Monthly";
+  isFreeProduct: boolean;
   addedAt: Date;
 }
 

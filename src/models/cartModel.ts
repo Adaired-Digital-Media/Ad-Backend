@@ -23,6 +23,7 @@ const CartSchema = new Schema<CartTypes>(
         phone: { type: String, required: true },
         pricePerUnit: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
+        isFreeProduct:{ type: Boolean, default: false},
         orderType: {
           type: String,
           enum: ["OneTime", "Monthly"],

@@ -25,6 +25,7 @@ export const syncOrAddToCart = async (
 
     // Find the user's cart or create one if it doesn't exist
     let cart = await Cart.findOne({ userId });
+
     if (!cart) {
       // Create a new cart if one doesn't exist
       cart = new Cart({
@@ -99,7 +100,7 @@ export const syncOrAddToCart = async (
     // Save the cart
     await cart.save();
     res.status(200).json({
-      message: "Cart Updated successfully",
+      message: "Product added successfully",
       cart,
     });
   } catch (error: any) {
