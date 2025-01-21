@@ -74,9 +74,11 @@ export const createOrder = async (
       await cart.save();
 
       // Redirect to the success page
-      return res.redirect(
-        `${process.env.LOCAL_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
-      );
+      return res.status(200).json({
+        message: "Order created successfully",
+        data: newOrder,
+        redirectUrl: `${process.env.LOCAL_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+      });
     }
 
     // Stripe session creation for paid transactions
