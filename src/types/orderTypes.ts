@@ -1,19 +1,11 @@
 import { Types } from "mongoose";
-// Define a type for each product in the order
-interface OrderProduct {
-  productId: Types.ObjectId;
-  formData: Record<string, any>;
-  quantity: number;
-  totalPrice: number;
-  discountedPrice: number;
-  orderType: "OneTime" | "Monthly";
-}
+import { CartProduct } from "./cartTypes";
 
 // Define the main Order type
 export interface OrderTypes extends Document {
   userId: Types.ObjectId;
   orderNumber?: string;
-  products: OrderProduct[];
+  products: CartProduct[];
   totalQuantity: number;
   totalPrice: number;
   discountedPrice: number;

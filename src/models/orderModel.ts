@@ -8,27 +8,15 @@ const OrderSchema = new Schema<OrderTypes>(
     orderNumber: { type: String },
     products: [
       {
-        productId: {
+        product: {
           type: Schema.Types.ObjectId,
           ref: "Product",
           required: true,
         },
-        category: { type: String, required: true },
-        productName: { type: String, required: true },
-        productImage: { type: String, required: true },
         wordCount: { type: Number, min: 100 },
         quantity: { type: Number, required: true, min: 1 },
-        name: { type: String },
-        email: { type: String, required: true },
-        phone: { type: String, required: true },
-        pricePerUnit: { type: Number, required: true },
-        totalPrice: { type: Number, required: true },
         additionalInfo: { type: String },
-        orderType: {
-          type: String,
-          enum: ["OneTime", "Monthly"],
-          default: "OneTime",
-        },
+        totalPrice: { type: Number, required: true },
         addedAt: { type: Date, default: Date.now },
       },
     ],
@@ -39,16 +27,11 @@ const OrderSchema = new Schema<OrderTypes>(
     couponDiscount: { type: Number, default: 0 },
     paymentId: { type: String },
     invoiceId: { type: String, required: true },
+    zohoInvoiceId: { type: String },
     paymentUrl: { type: String },
     status: {
       type: String,
-      enum: [
-        "Pending",
-        "Processing",
-        "Confirmed",
-        "Completed",
-        "Cancelled",
-      ],
+      enum: ["Pending", "Processing", "Confirmed", "Completed", "Cancelled"],
       default: "Pending",
     },
     paymentStatus: {
@@ -61,7 +44,6 @@ const OrderSchema = new Schema<OrderTypes>(
       enum: ["Razorpay", "Stripe"],
       required: true,
     },
-    zohoInvoiceId: { type: String },
     paymentDate: { type: Date },
   },
   {

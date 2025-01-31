@@ -6,6 +6,101 @@ import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import { CustomError } from "../middlewares/error";
 import { Types } from "mongoose";
+import { CartProduct } from "../types/cartTypes";
+
+// Helper function to validate cart items
+const validateCartItems = async (products: CartProduct[]) => {
+  const productIds = products.map((item) => item.product._id);
+  const existingProducts = await Product.find({ _id: { $in: productIds } });
+
+  // Create a map for quick lookup
+  const productMap = new Map(
+    existingProducts.map((product) => [product._id.toString(), product])
+  );
+
+  for (const item of products) {
+    if (!productMap.has(item.product._id.toString())) {
+      throw new CustomError(
+        404,
+        `Product with ID ${item.product._id} not found.`
+      );
+    }
+  }
+};
+
+// Helper function to handle free products
+const handleFreeProducts = async (
+  userId: Types.ObjectId,
+  products: CartProduct[]
+) => {
+  const productIds = products.map((item) => item.product._id);
+  const existingProducts = await Product.find({ _id: { $in: productIds } });
+
+  // Create a map for quick lookup
+  const productMap = new Map(
+    existingProducts.map((product) => [product._id.toString(), product])
+  );
+
+  const freeProductIds = existingProducts
+    .filter((product) => product.isFreeProduct)
+    .map((product) => product._id.toString());
+
+  if (freeProductIds.length > 0) {
+    const [existingCart, existingOrders] = await Promise.all([
+      Cart.findOne({ userId }),
+      Order.find({
+        userId,
+        "products.product": { $in: freeProductIds },
+        paymentStatus: "Paid",
+      }),
+    ]);
+
+    // Check if free products are already in the cart
+    if (existingCart) {
+      const cartProductIds = existingCart.products.map((item) =>
+        item.product._id.toString()
+      );
+
+      for (const productId of freeProductIds) {
+        if (cartProductIds.includes(productId)) {
+          const product = productMap.get(productId);
+          throw new CustomError(
+            400,
+            `You cannot add the free product (${product?.name}) to the cart more than once.`
+          );
+        }
+      }
+    }
+
+    // Check if free products have already been purchased
+    if (existingOrders.length > 0) {
+      for (const order of existingOrders) {
+        for (const productId of freeProductIds) {
+          if (
+            order.products.some(
+              (item) => item.product._id.toString() === productId
+            )
+          ) {
+            const product = productMap.get(productId);
+            throw new CustomError(
+              400,
+              `You have already purchased the free product (${product?.name}).`
+            );
+          }
+        }
+      }
+    }
+  }
+};
+
+// Helper function to recalculate cart totals
+const recalculateCartTotals = (cart: any) => {
+  cart.totalQuantity = cart.products.length;
+  cart.totalPrice = cart.products.reduce(
+    (acc: number, product: any) => acc + product.totalPrice,
+    0
+  );
+};
 
 // *********************************************************
 // ***** Add Product to Cart / Sync Cart with Frontend *****
@@ -17,91 +112,57 @@ export const syncOrAddToCart = async (
 ) => {
   try {
     const { userId, body } = req;
-    const { cartItems } = body;
+    const { products } = body;
 
-    if (!cartItems || cartItems.length === 0) {
-      return next(new CustomError(400, "Cart items cannot be empty."));
+    if (!products || products.length === 0) {
+      console.log(products);
+      return next(new CustomError(400, "Cart cannot be empty."));
     }
+
+    // Validate cart items and handle free products in parallel
+    await Promise.all([
+      validateCartItems(products),
+      handleFreeProducts(new Types.ObjectId(userId), products),
+    ]);
 
     // Find the user's cart or create one if it doesn't exist
     let cart = await Cart.findOne({ userId });
 
     if (!cart) {
-      // Create a new cart if one doesn't exist
       cart = new Cart({
-        userId: body.userId || userId,
+        userId,
         products: [],
         totalQuantity: 0,
         totalPrice: 0,
       });
 
-      // Find the user and set their cart reference
-      const user = await User.findById(userId);
-      if (user) {
-        user.cart = cart._id;
-        await user.save();
-      }
+      // Update the user's cart reference
+      await User.findByIdAndUpdate(userId, { cart: cart._id });
     }
 
-    // Check for free products and prevent a user from adding it more than once
-    for (const item of cartItems) {
-      const product = await Product.findById(item.productId);
-
-      if (!product) {
-        return next(
-          new CustomError(404, `Product with ID ${item.productId} not found.`)
-        );
-      }
-
-      // Handle free products
-      if (product.isFreeProduct) {
-        // Check if the product is already in the cart
-        const alreadyInCart = cart.products.some(
-          (cartItem: any) => cartItem.productId.toString() === item.productId
-        );
-
-        if (alreadyInCart) {
-          return next(
-            new CustomError(
-              400,
-              `You cannot add the free product (${product.name}) to the cart more than once.`
-            )
-          );
-        }
-
-        // Check if the user has already purchased this product
-        const existingOrder = await Order.findOne({
-          userId,
-          "products.productId": item.productId,
-          paymentStatus: "Paid",
-        });
-
-        if (existingOrder) {
-          return next(
-            new CustomError(
-              400,
-              `You have already purchased the free product (${product.name}).`
-            )
-          );
-        }
-      }
-
-      // Add the item to the cart
+    // Add items to the cart
+    for (const item of products) {
       cart.products.push(item);
     }
 
     // Recalculate total quantity and price
-    cart.totalQuantity = cart.products.length;
-    cart.totalPrice = cart.products.reduce(
-      (acc: number, product: any) => acc + product.totalPrice,
-      0
-    );
+    recalculateCartTotals(cart);
 
     // Save the cart
     await cart.save();
+
+    // Populate the product field in the cart
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "products.product",
+    });
+
+    if (!populatedCart) {
+      return next(new CustomError(404, "Cart not found after population."));
+    }
+
     res.status(200).json({
       message: "Product added successfully",
-      cart,
+      cart: populatedCart,
     });
   } catch (error: any) {
     next(new CustomError(500, error.message));
@@ -121,41 +182,31 @@ export const getUserCart = async (
     const { customerId } = req.query;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "carts", 1);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
+    if (customerId) {
+      const permissionCheck = await checkPermission(userId, "carts", 2);
+      if (!permissionCheck) {
+        return next(new CustomError(403, "Permission denied"));
+      }
     }
 
-    if (customerId) {
-      const cart = await Cart.findOne({
-        userId: customerId,
-      }).populate({
-        path: "products.productId",
-        populate: {
-          path: "subCategory",
-          select: "name",
-        },
-      });
-      if (!cart) {
-        return res.status(404).json({ message: "Cart not found" });
-      }
-      return res.status(200).json({
-        message: "Cart data fetched successfully",
-        data: cart,
-      });
-    } else {
-      const cart = await Cart.find().populate({
-        path: "products.productId",
-        populate: {
-          path: "subCategory",
-          select: "name",
-        },
-      });
-      return res.status(200).json({
-        message: "Cart data fetched successfully",
-        data: cart,
-      });
+    // Fetch cart based on customerId or all carts
+    const query = customerId ? { userId: customerId } : {};
+    const cart = await Cart.findOne(query).populate({
+      path: "products.product",
+      populate: {
+        path: "subCategory",
+        select: "name",
+      },
+    });
+
+    if (!cart || (customerId && cart.userId.toString() !== customerId)) {
+      return res.status(404).json({ message: "Cart not found" });
     }
+
+    return res.status(200).json({
+      message: "Cart data fetched successfully",
+      cart
+    });
   } catch (error: any) {
     next(new CustomError(500, error.message));
   }
@@ -169,49 +220,57 @@ export const updateCart = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  const { ...updateFields } = req.body;
-
   try {
-    // Check if the cart exists
-    const cart = await Cart.findOne({
-      userId: userId,
-    });
+    const { userId } = req;
+    const { cartItemId, ...updateFields } = req.body;
 
+    if (!cartItemId) {
+      return next(new CustomError(400, "Product entry ID is required."));
+    }
+
+    // Find the user's cart
+    const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+      return next(new CustomError(404, "Cart not found."));
     }
 
     // Find the specific product entry by its unique ID
-    const product = cart.products.find(
-      (p) => p._id.toString() === updateFields.productEntryId
+    const productIndex = cart.products.findIndex(
+      (p) => p._id.toString() === cartItemId
     );
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: "Product entry not found in cart" });
+    if (productIndex === -1) {
+      return next(new CustomError(404, "Product entry not found in cart."));
     }
 
-    // Dynamically update the product fields from the request body
+    // Update the product fields
+    const product = cart.products[productIndex];
     Object.keys(updateFields).forEach((key) => {
-      if (key in product) {
+      if (key in product && updateFields[key] !== undefined) {
         (product as any)[key] = updateFields[key];
       }
     });
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.length;
-    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
+    recalculateCartTotals(cart);
 
     // Save the updated cart
     await cart.save();
 
+    // Populate the product field in the cart
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "products.product",
+    });
+
+    if (!populatedCart) {
+      return next(new CustomError(404, "Cart not found after population."));
+    }
+
     res.status(200).json({
       message: "Cart updated successfully",
-      data: cart,
+      cart: populatedCart,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -223,40 +282,52 @@ export const deleteProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  const { productEntryId } = req.query;
-
   try {
+    const { userId } = req;
+    const { cartItemId } = req.query;
+
+    if (!cartItemId) {
+      return next(new CustomError(400, "Product entry ID is required."));
+    }
+
     // Check if the cart exists
     const cart = await Cart.findOne({ userId: userId });
     if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+      return next(new CustomError(404, "Cart not found."));
     }
 
     // Find the product to remove
-    const productIndex = cart.products.findIndex((p) =>
-      p._id.equals(new Types.ObjectId(productEntryId as string))
+    const productIndex = cart.products.findIndex(
+      (p) => p._id.toString() === cartItemId.toString()
     );
     if (productIndex === -1) {
-      return res.status(404).json({ message: "Product not found in cart" });
+      return next(new CustomError(404, "Product entry not found in cart."));
     }
 
     // Remove the product from the cart
     cart.products.splice(productIndex, 1);
 
     // Recalculate total quantity and total price
-    cart.totalQuantity = cart.products.length;
-    cart.totalPrice = cart.products.reduce((acc, p) => acc + p.totalPrice, 0);
+    recalculateCartTotals(cart);
 
     // Save the updated cart
     await cart.save();
 
+    // Populate the product field in the cart
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "products.product",
+    });
+
+    if (!populatedCart) {
+      return next(new CustomError(404, "Cart not found after population."));
+    }
+
     res.status(200).json({
       message: "Product removed from cart",
-      data: cart,
+      cart: populatedCart,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -268,19 +339,23 @@ export const emptyCart = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  const { customerId } = req.query;
-
-  // Check Permission
-  const permissionCheck = await checkPermission(userId, "carts", 3);
-  if (!permissionCheck) {
-    return res.status(403).json({ message: "Permission denied" });
-  }
-
   try {
-    const cart = await Cart.findOne({ userId: customerId });
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+    const { userId } = req;
+    const { customerId } = req.query;
+
+    // Check Permission
+    if (customerId) {
+      const permissionCheck = await checkPermission(userId, "carts", 3);
+      if (!permissionCheck) {
+        return next(new CustomError(403, "Permission denied"));
+      }
+    }
+
+    // Fetch cart based on customerId or all carts
+    const query = customerId ? { userId: customerId } : {};
+    const cart = await Cart.findOne(query);
+    if (!cart || (customerId && cart.userId.toString() !== customerId)) {
+      return next(new CustomError(404, "Cart not found"));
     }
 
     cart.products = [];
@@ -292,7 +367,7 @@ export const emptyCart = async (
     // Find the user and clear the cart reference
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return next(new CustomError(404, "User not found"));
     }
 
     user.cart = null;
@@ -300,40 +375,7 @@ export const emptyCart = async (
     // Save the updated user
     await user.save();
 
-    res.status(200).json({ message: "Cart cleared successfully" });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ***************************************
-// ********* Get Own Cart Data ***********
-// ***************************************
-
-export const getOwnCart = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { userId } = req;
-
-    const cart = await Cart.findOne({
-      userId,
-    }).populate({
-      path: "products.productId",
-      populate: {
-        path: "subCategory",
-        select: "name",
-      },
-    });
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-    return res.status(200).json({
-      message: "Cart data fetched successfully",
-      data: cart,
-    });
+    res.status(200).json({ message: "Cart cleared successfully", cart });
   } catch (error: any) {
     next(new CustomError(500, error.message));
   }

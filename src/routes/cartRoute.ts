@@ -6,7 +6,6 @@ import {
   getUserCart,
   emptyCart,
   deleteProduct,
-  getOwnCart,
 } from "../controllers/cartController";
 
 const router: Router = express.Router();
@@ -16,6 +15,5 @@ router.get("/get-user-cart", verifyToken, getUserCart);
 router.patch("/update-cart", verifyToken, updateCart);
 router.delete("/delete-product", verifyToken, deleteProduct);
 router.delete("/empty-cart", verifyToken, emptyCart);
-router.get("/get-own-cart", verifyToken, getOwnCart);
 
 export default router;

@@ -8,6 +8,78 @@ import { validationResult } from "express-validator";
 import { Types } from "mongoose";
 import ProductCategory from "../models/productCategoryModel";
 
+// Helper function to validate user input
+const validateInput = (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({
+      message: "Invalid input",
+      errors: errors.array(),
+    });
+    return false;
+  }
+  return true;
+};
+
+// Helper function to check if a slug is unique
+const isSlugUnique = async (slug: string) => {
+  const existingProduct = await Product.findOne({ slug });
+  return !existingProduct;
+};
+
+// Helper function to fetch product by ID or slug
+const fetchProduct = async (identifier: string) => {
+  if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+    return await Product.findById(identifier);
+  } else {
+    return await Product.findOne({ slug: identifier });
+  }
+};
+
+// Helper function to update product in categories
+const updateProductInCategories = async (
+  productId: Types.ObjectId,
+  oldCategoryId: Types.ObjectId | null,
+  oldSubCategoryId: Types.ObjectId | null,
+  newCategoryId: Types.ObjectId | null,
+  newSubCategoryId: Types.ObjectId | null
+) => {
+  const updates = [];
+  if (oldCategoryId) {
+    updates.push(
+      ProductCategory.updateOne(
+        { _id: oldCategoryId },
+        { $pull: { products: productId } }
+      )
+    );
+  }
+  if (oldSubCategoryId) {
+    updates.push(
+      ProductCategory.updateOne(
+        { _id: oldSubCategoryId },
+        { $pull: { products: productId } }
+      )
+    );
+  }
+  if (newCategoryId) {
+    updates.push(
+      ProductCategory.updateOne(
+        { _id: newCategoryId },
+        { $push: { products: productId } }
+      )
+    );
+  }
+  if (newSubCategoryId) {
+    updates.push(
+      ProductCategory.updateOne(
+        { _id: newSubCategoryId },
+        { $push: { products: productId } }
+      )
+    );
+  }
+  await Promise.all(updates);
+};
+
 // ***************************************
 // ********** Create Product **************
 // ***************************************
@@ -22,17 +94,11 @@ export const createProduct = async (
     // Check Permission
     const permissionCheck = await checkPermission(userId, "products", 0);
     if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
+      throw new CustomError(403, "Permission denied");
     }
 
     // Validate user input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
-      });
-    }
+    if (!validateInput(req, res)) return;
 
     const { slug, name, subCategory } = body;
 
@@ -41,27 +107,23 @@ export const createProduct = async (
       ? slugify(slug, { lower: true })
       : slugify(name, { lower: true });
 
-    // Check if the slug is already in use
-    const existingProduct = await Product.findOne({ slug: slugToUse });
-    if (existingProduct) {
-      return res.status(400).json({ message: "Slug already in use" });
+    // Check if the slug is unique
+    if (!(await isSlugUnique(slugToUse))) {
+      throw new CustomError(400, "Slug already in use");
     }
 
-    // If subCategory is provided, fetch it and the parent category in one go
-    let parentCategory;
-    let subcategory = null;
+    // If subCategory is provided, fetch it and the parent category
+    let parentCategory = null;
     if (subCategory) {
-      subcategory = await ProductCategory.findById(subCategory);
+      const subcategory = await ProductCategory.findById(subCategory);
       if (!subcategory) {
-        return res.status(404).json({ message: "Subcategory not found" });
+        throw new CustomError(404, "Subcategory not found");
       }
-
-      // Fetch parent category only if subcategory exists
       parentCategory = await ProductCategory.findById(
         subcategory.parentCategory
       );
       if (!parentCategory) {
-        return res.status(404).json({ message: "Parent category not found" });
+        throw new CustomError(404, "Parent category not found");
       }
     }
 
@@ -74,28 +136,22 @@ export const createProduct = async (
     };
     const createdProduct = await Product.create(newProduct);
 
-    // Update subcategory and parent category (if subCategory exists)
-    if (subcategory) {
-      await Promise.all([
-        ProductCategory.updateOne(
-          { _id: subcategory._id },
-          { $push: { products: createdProduct._id } }
-        ),
-        parentCategory && parentCategory._id
-          ? ProductCategory.updateOne(
-              { _id: parentCategory._id },
-              { $push: { products: createdProduct._id } }
-            )
-          : Promise.resolve(),
-      ]);
+    // Update categories
+    if (subCategory && parentCategory) {
+      await updateProductInCategories(
+        createdProduct._id,
+        null,
+        null,
+        parentCategory._id,
+        subCategory
+      );
     }
 
-    // Respond with the created product
     res
       .status(201)
       .json({ message: "Product created successfully", data: createdProduct });
-  } catch (error) {
-    next(new CustomError(500, "Error creating product"));
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -114,30 +170,15 @@ export const readProducts = async (
 
     if (query) {
       const idString = query.toString();
-
-      // Check if the identifier is a valid MongoDB ObjectId
-      if (idString.match(/^[0-9a-fA-F]{24}$/)) {
-        // If identifier is an ObjectId, find product by ID
-        product = await Product.findById(idString)
-          .populate("createdBy category subCategory")
-          .lean();
-      } else {
-        // If identifier is a slug, find product by slug
-        product = await Product.findOne({ slug: idString })
-          .populate("createdBy category subCategory")
-          .lean();
-      }
-
+      product = await fetchProduct(idString);
       if (!product) {
-        return next(new CustomError(404, "Product not found!"));
+        throw new CustomError(404, "Product not found!");
       }
-
       return res.status(200).json({
         message: "Product found",
         data: product,
       });
     } else {
-      // If no identifier is provided, return all products
       const products = await Product.find()
         .populate("createdBy category subCategory")
         .lean();
@@ -146,8 +187,8 @@ export const readProducts = async (
         data: products,
       });
     }
-  } catch (error) {
-    return next(new CustomError(400, "Something went wrong"));
+  } catch (error: any) {
+    return next(new CustomError(500, error.message));
   }
 };
 
@@ -159,123 +200,80 @@ export const updateProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId, body } = req;
-  const { query } = req.query;
-
   try {
+    const { userId, body } = req;
+    const { query } = req.query;
+
     // Check Permission
     const permissionCheck = await checkPermission(userId, "products", 2);
     if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
+      throw new CustomError(403, "Permission denied");
     }
 
     // Validate user input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
-      });
-    }
+    if (!validateInput(req, res)) return;
 
     const idString = query.toString();
-
-    // Find the product (either by ID or slug)
-    let product;
-    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
-      // Find product by ID
-      product = await Product.findById(idString);
-    } else {
-      // Find product by slug
-      product = await Product.findOne({ slug: idString });
-    }
-
-    // Check if the product exists
+    const product = await fetchProduct(idString);
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      throw new CustomError(404, "Product not found!");
     }
 
-    // Check if the slug is being updated, and if it is, validate uniqueness
+    // Check if the slug is being updated and validate uniqueness
     if (body.slug && body.slug !== product.slug) {
-      const existingSlugProduct = await Product.findOne({
-        slug: slugify(body.slug, { lower: true }),
-      });
-      if (existingSlugProduct) {
-        return res.status(400).json({ message: "Slug already in use" });
+      const slugToUse = slugify(body.slug, { lower: true });
+      if (!(await isSlugUnique(slugToUse))) {
+        throw new CustomError(400, "Slug already in use");
       }
-      body.slug = slugify(body.slug, { lower: true });
+      body.slug = slugToUse;
     }
 
     // If subCategory is provided, fetch it and the parent category
     let parentCategory = null;
-    let newSubcategory = null;
+    let newSubCategoryId = null;
     if (
       body.subCategory &&
       body.subCategory !== product.subCategory?.toString()
     ) {
-      newSubcategory = await ProductCategory.findById(body.subCategory);
+      const newSubcategory = await ProductCategory.findById(body.subCategory);
       if (!newSubcategory) {
-        return res.status(404).json({ message: "Subcategory not found" });
+        throw new CustomError(404, "Subcategory not found");
       }
-      // Fetch parent category if subcategory exists
       parentCategory = await ProductCategory.findById(
         newSubcategory.parentCategory
       );
       if (!parentCategory) {
-        return res.status(404).json({ message: "Parent category not found" });
+        throw new CustomError(404, "Parent category not found");
       }
+      newSubCategoryId = newSubcategory._id;
     }
 
-    // If subCategory is changing, update the categories
-    if (
-      body.subCategory &&
-      body.subCategory !== product.subCategory?.toString()
-    ) {
-      // Remove product from the existing subcategory and category
-      await Promise.all([
-        ProductCategory.updateOne(
-          { _id: product.subCategory },
-          { $pull: { products: product._id } }
-        ),
-        ProductCategory.updateOne(
-          { _id: product.category },
-          { $pull: { products: product._id } }
-        ),
-      ]);
-
-      // Set the new category to the parent category of the new subcategory
-      body.category = parentCategory._id;
-
-      // Add product to the new subcategory and its parent category
-      await Promise.all([
-        ProductCategory.updateOne(
-          { _id: newSubcategory._id },
-          { $push: { products: product._id } }
-        ),
-        ProductCategory.updateOne(
-          { _id: parentCategory._id },
-          { $push: { products: product._id } }
-        ),
-      ]);
+    // Update product in categories if subCategory is changing
+    if (newSubCategoryId) {
+      await updateProductInCategories(
+        product._id,
+        product.category,
+        product.subCategory,
+        parentCategory?._id || null,
+        newSubCategoryId
+      );
+      body.category = parentCategory?._id || null;
     }
 
-    // Ensure updatedBy is set to the current userId
+    // Update the product
     body.updatedBy = userId;
-
-    // Update the product with the provided data
     const updatedProduct = await Product.findByIdAndUpdate(
       product._id,
-      { $set: { ...body } },
+      { $set: body },
       { new: true }
     );
 
-    // Return the updated product data in the response
     res.status(200).json({
       message: "Product updated successfully",
       data: updatedProduct,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -287,52 +285,37 @@ export const deleteProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  const { query } = req.query;
-
   try {
+    const { userId } = req;
+    const { query } = req.query;
+
     // Check Permission
     const permissionCheck = await checkPermission(userId, "products", 3);
     if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
+      throw new CustomError(403, "Permission denied");
     }
 
     const idString = query.toString();
-
-    // Find the product (either by ID or slug)
-    let product;
-    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
-      product = await Product.findById(idString);
-    } else {
-      product = await Product.findOne({ slug: idString });
-    }
-
+    const product = await fetchProduct(idString);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Remove product from category and subcategory
-    const categoryUpdate = ProductCategory.updateOne(
-      { _id: product.category },
-      { $pull: { products: product._id } }
+    // Remove product from categories
+    await updateProductInCategories(
+      product._id,
+      product.category,
+      product.subCategory,
+      null,
+      null
     );
-
-    const subCategoryUpdate = product.subCategory
-      ? ProductCategory.updateOne(
-          { _id: product.subCategory },
-          { $pull: { products: product._id } }
-        )
-      : Promise.resolve();
-
-    // Execute updates in parallel
-    await Promise.all([categoryUpdate, subCategoryUpdate]);
 
     // Delete the product
     await Product.findByIdAndDelete(product._id);
 
     res.status(200).json({ message: "Product deleted successfully" });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
@@ -344,33 +327,25 @@ export const duplicateProduct = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId, params } = req;
-  const { query } = req.query;
-
   try {
+    const { userId } = req;
+    const { query } = req.query;
+
     // Check Permission
     const permissionCheck = await checkPermission(userId, "products", 0);
     if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
+      throw new CustomError(403, "Permission denied");
     }
 
     const idString = query.toString();
-
-    // Find the product (either by ID or slug)
-    let product;
-    if (idString.match(/^[0-9a-fA-F]{24}$/)) {
-      product = await Product.findById(idString).lean();
-    } else {
-      product = await Product.findOne({ slug: idString }).lean();
-    }
-
+    const product = await fetchProduct(idString);
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      throw new CustomError(404, "Product not found");
     }
 
     // Prepare the duplicated product data
     const duplicatedProductData = {
-      ...product,
+      ...product.toObject(),
       _id: new Types.ObjectId(),
       name: `${product.name} (Copy)`,
       slug: `${product.slug}-copy-${Date.now()}`,
@@ -381,25 +356,20 @@ export const duplicateProduct = async (
     // Create the duplicated product
     const duplicatedProduct = await Product.create(duplicatedProductData);
 
-    // Add duplicated product to the current category
-    await ProductCategory.updateOne(
-      { _id: duplicatedProduct.category },
-      { $push: { products: duplicatedProduct._id } }
+    // Add duplicated product to categories
+    await updateProductInCategories(
+      duplicatedProduct._id,
+      null,
+      null,
+      product.category,
+      product.subCategory
     );
-
-    // If product has a parent category, add the duplicated product to the parent category as well
-    if (product.subCategory) {
-      await ProductCategory.updateOne(
-        { _id: product.subCategory },
-        { $push: { products: duplicatedProduct._id } }
-      );
-    }
 
     res.status(201).json({
       message: "Product duplicated successfully",
       data: duplicatedProduct,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };

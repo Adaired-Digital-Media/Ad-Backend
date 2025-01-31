@@ -3,7 +3,7 @@ import { check, body, param } from "express-validator";
 
 // ********** User and Authentication ***********
 export const validateRegister = [
-  check("name", "Name is required").notEmpty().isString().trim(),
+  check("name", "Name is required").isString().trim(),
   check("email", "Email is required")
     .isEmail()
     .withMessage("Please enter a valid email")
@@ -21,11 +21,12 @@ export const validateRegister = [
     })
     .withMessage(
       "Password must be at least 8 characters long and contain at least 1 lowercase letter, 1 uppercase letter, 1 number, and 1 special character"
-    ),
+    )
+    .optional(),
   check("contact", "Contact is required")
-    .notEmpty()
     .isMobilePhone("any")
-    .withMessage("Contact must be a valid phone number"),
+    .withMessage("Contact must be a valid phone number")
+    .optional(),
   check("userStatus").optional(),
 ];
 

@@ -1,6 +1,7 @@
 import mongoose, { Types, Schema, Document, Model } from "mongoose";
 
 export type ProductTypes = {
+  _id: Types.ObjectId;
   featuredImage: string;
   name: string;
   description: string;

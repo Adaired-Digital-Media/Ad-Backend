@@ -4,6 +4,7 @@ import Order from "../models/orderModel";
 import Cart from "../models/cartModel";
 import { CustomError } from "../middlewares/error";
 import checkPermission from "../helpers/authHelper";
+import axios from "axios";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -22,14 +23,12 @@ export const createOrder = async (
 ) => {
   try {
     const { userId } = req;
-    const { couponId, paymentMethod } = req.body;
+    const { couponId, paymentMethod, ip } = req.body;
 
     const cart = await Cart.findOne({ userId });
     if (!cart || cart.products.length === 0) {
       return res.status(400).json({ message: "Cart is empty." });
     }
-
-    console.log("Cart Data: ", cart);
 
     let totalPrice = cart.totalPrice;
     let couponDiscount = 0;
@@ -81,23 +80,62 @@ export const createOrder = async (
       });
     }
 
+    // Get currency based on IP
+    const getCurrencyFromRegion = async (ip: string): Promise<string> => {
+      try {
+        const response = await axios.get(`https://ipinfo.io/${ip}/json`);
+        return response.data.country === "IN" ? "inr" : "usd";
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error detecting currency:", error);
+        }
+        return "usd"; // Default currency
+      }
+    };
+
+    const currency = await getCurrencyFromRegion(ip);
+
+    // Fetch exchange rate
+    const getExchangeRate = async (): Promise<number> => {
+      if (currency === "usd") return 1;
+      try {
+        const response = await axios.get(
+          "https://api.exchangerate-api.com/v4/latest/USD"
+        );
+        return response.data.rates.INR;
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error detecting currency:", error);
+        }
+        return 80; // Fallback rate
+      }
+    };
+
+    const exchangeRate = await getExchangeRate();
+
     // Stripe session creation for paid transactions
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: cart.products.map((product) => ({
         price_data: {
-          currency: "usd",
+          currency: currency,
           product_data: {
-            name: product.productName,
+            name: product.product.name,
           },
-          unit_amount: Math.round(
-            (product.wordCount && product.wordCount > 0
-              ? (product.wordCount / 100) * product.pricePerUnit
-              : product.pricePerUnit) * 100
-          ),
-          // unit_amount: Math.round(
-          //   (product.wordCount / 100) * product.pricePerUnit
-          // ),
+          unit_amount:
+            currency === "inr"
+              ? Math.round(
+                  (product.wordCount && product.wordCount > 0
+                    ? (product.wordCount / 100) * product.product.pricePerUnit
+                    : product.product.pricePerUnit) *
+                    100 *
+                    exchangeRate
+                )
+              : Math.round(
+                  (product.wordCount && product.wordCount > 0
+                    ? (product.wordCount / 100) * product.product.pricePerUnit
+                    : product.product.pricePerUnit) * 100
+                ),
         },
         quantity: product.quantity,
       })),
@@ -207,7 +245,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
             price_data: {
               currency: "usd",
               product_data: {
-                name: product.productName,
+                name: product.product.name,
               },
               unit_amount: Math.round(product.totalPrice * 100),
             },
