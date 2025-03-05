@@ -5,6 +5,7 @@ import Cart from "../models/cartModel";
 import { CustomError } from "../middlewares/error";
 import checkPermission from "../helpers/authHelper";
 import axios from "axios";
+import { BASE_DOMAIN } from "../utils/globals";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -25,7 +26,7 @@ export const createOrder = async (
     const { userId } = req;
     const { couponId, paymentMethod, ip } = req.body;
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId }).populate("products.product");
     if (!cart || cart.products.length === 0) {
       return res.status(400).json({ message: "Cart is empty." });
     }
@@ -76,7 +77,7 @@ export const createOrder = async (
       return res.status(200).json({
         message: "Order created successfully",
         data: newOrder,
-        redirectUrl: `${process.env.LOCAL_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+        redirectUrl: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
       });
     }
 
@@ -87,9 +88,10 @@ export const createOrder = async (
         return response.data.country === "IN" ? "inr" : "usd";
       } catch (error) {
         if (error instanceof Error) {
-          console.error("Error detecting currency:", error);
+          console.error("Error detecting region:", error);
+          throw new CustomError(500, error.message);
         }
-        return "usd"; // Default currency
+        return "usd";
       }
     };
 
@@ -106,6 +108,7 @@ export const createOrder = async (
       } catch (error) {
         if (error instanceof Error) {
           console.error("Error detecting currency:", error);
+          throw new CustomError(500, error.message);
         }
         return 80; // Fallback rate
       }
@@ -116,32 +119,27 @@ export const createOrder = async (
     // Stripe session creation for paid transactions
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      line_items: cart.products.map((product) => ({
-        price_data: {
-          currency: currency,
-          product_data: {
-            name: product.product.name,
+      line_items: cart.products.map((item) => {
+        const product = item.product; // Access the nested product object
+        const unitAmount =
+          (item.wordCount && item.wordCount > 0
+            ? (item.wordCount / 100) * product.pricePerUnit
+            : product.pricePerUnit) * (currency === "inr" ? exchangeRate : 1);
+
+        return {
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: product.name,
+            },
+            unit_amount: Math.round(unitAmount * 100), // Convert to cents
           },
-          unit_amount:
-            currency === "inr"
-              ? Math.round(
-                  (product.wordCount && product.wordCount > 0
-                    ? (product.wordCount / 100) * product.product.pricePerUnit
-                    : product.product.pricePerUnit) *
-                    100 *
-                    exchangeRate
-                )
-              : Math.round(
-                  (product.wordCount && product.wordCount > 0
-                    ? (product.wordCount / 100) * product.product.pricePerUnit
-                    : product.product.pricePerUnit) * 100
-                ),
-        },
-        quantity: product.quantity,
-      })),
+          quantity: item.quantity,
+        };
+      }),
       mode: "payment",
-      success_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
-      cancel_url: `${process.env.LIVE_DOMAIN}/expert-content-solutions`,
+      success_url: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+      cancel_url: `${BASE_DOMAIN}/expert-content-solutions`,
       metadata: { userId, couponId },
     });
 
@@ -252,8 +250,8 @@ export const stripeWebhook = async (req: Request, res: Response) => {
             quantity: product.quantity,
           })),
           mode: "payment",
-          success_url: `${process.env.LOCAL_DOMAIN}/success`,
-          cancel_url: `${process.env.LOCAL_DOMAIN}/cancel`,
+          success_url: expiredSession.success_url,
+          cancel_url: expiredSession.cancel_url,
           metadata: {
             userId: expiredSession.metadata.userId,
             couponId: expiredSession.metadata.couponId,

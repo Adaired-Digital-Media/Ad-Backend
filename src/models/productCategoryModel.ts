@@ -7,7 +7,7 @@ const CategorySchema = new Schema<CategoryTypes>(
     description: { type: String },
     parentCategory: {
       type: Schema.Types.ObjectId,
-      ref: "Category",
+      ref: "ProductCategory",
       default: null,
     },
     children: { type: [Schema.Types.ObjectId], default: [] },
@@ -19,7 +19,7 @@ const CategorySchema = new Schema<CategoryTypes>(
     canonicalLink: { type: String },
     status: {
       type: String,
-      enum: ["Active", "Inactive", "Archived"],
+      enum: ["Active", "Inactive", "Draft"],
       default: "Active",
     },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },

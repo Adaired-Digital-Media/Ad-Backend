@@ -6,7 +6,8 @@ import {
   fetchImageByPublicId,
   fetchImagesInFolder,
   uploadImages,
-  editImageInfo, // Import the editImageInfo function
+  editImageInfo,
+  getCloudinaryStorageUsage,
 } from "../utils/cloudinary";
 
 const router: Router = express.Router();
@@ -27,8 +28,8 @@ router.post(
         message: "Files uploaded successfully",
         data: results,
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
     }
   }
 );
@@ -37,49 +38,46 @@ router.post(
 router.get(
   "/getUploadedMedia",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { page = 1, limit = 100, fileType = "all" } = req.query; // Extract fileType from query
+    const { fileType } = req.query; // Extract fileType from query
     try {
-      // Ensure page and limit are numbers and handle invalid inputs
-      const pageNumber = Number(page);
-      const limitNumber = Number(limit);
-
       // Call the fetchImagesInFolder function with the new fileType parameter
-      const results = await fetchImagesInFolder(pageNumber, limitNumber, fileType as "svg" | "non-svg" | "all");
+      const results = await fetchImagesInFolder(
+        fileType as "svg" | "non-svg" | "all"
+      );
       res.status(200).json({
         message: "Files fetched successfully",
         data: results,
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
     }
   }
 );
 
-
 // Route to get image by public ID
 router.get(
-  "/getImageByPublicId/:public_id",
+  "/getImageByPublicId",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { public_id } = req.params;
+    const { public_id } = req.query;
     try {
-      const result = await fetchImageByPublicId(public_id);
+      const result = await fetchImageByPublicId(public_id as string);
       res.status(200).json({
         message: "Image fetched successfully",
         data: result.resources[0],
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
     }
   }
 );
 
 // Route to delete file by public ID
 router.delete(
-  "/deleteFile/:public_id",
+  "/deleteFile",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { public_id } = req.params;
+    const { public_id } = req.query;
     try {
-      const result = await deleteImage(public_id);
+      const result = await deleteImage(public_id as string);
 
       if (result.result === "ok") {
         res.json({
@@ -88,27 +86,47 @@ router.delete(
       } else {
         throw new CustomError(500, "Failed to delete image from Cloudinary");
       }
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
     }
   }
 );
 
 // Route to edit image metadata
 router.put(
-  "/editImage/:public_id",
+  "/editImage",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { public_id } = req.params;
-    const { title, description } = req.body;
+    const { public_id } = req.query;
+    const { caption, alt } = req.body;
 
     try {
-      const result = await editImageInfo(public_id, title, description);
+      const result = await editImageInfo(
+        public_id as string,
+        caption,
+        alt
+      );
       res.status(200).json({
         message: "Image metadata updated successfully",
         data: result,
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
+    }
+  }
+);
+
+// Route to get cloudinary usage information
+router.get(
+  "/get-usage",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await getCloudinaryStorageUsage();
+      res.status(200).json({
+        message: "Cloudinary usage updated successfully",
+        data: result,
+      });
+    } catch (error: any) {
+      next(new CustomError(500, error.message));
     }
   }
 );

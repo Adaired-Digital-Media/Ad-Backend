@@ -22,8 +22,12 @@ const validateInput = (req: Request, res: Response) => {
 };
 
 // Helper function to check if a slug is unique
-const isSlugUnique = async (slug: string) => {
-  const existingProduct = await Product.findOne({ slug });
+const isSlugUnique = async (slug: string, excludeProductId?: string) => {
+  const query: { slug: string; _id?: { $ne: string } } = { slug };
+  if (excludeProductId) {
+    query._id = { $ne: excludeProductId };
+  }
+  const existingProduct = await Product.findOne(query);
   return !existingProduct;
 };
 
@@ -40,11 +44,13 @@ const fetchProduct = async (identifier: string) => {
 const updateProductInCategories = async (
   productId: Types.ObjectId,
   oldCategoryId: Types.ObjectId | null,
-  oldSubCategoryId: Types.ObjectId | null,
+  oldSubCategoryIds: Types.ObjectId[] | null,
   newCategoryId: Types.ObjectId | null,
-  newSubCategoryId: Types.ObjectId | null
+  newSubCategoryIds: Types.ObjectId[] | null
 ) => {
-  const updates = [];
+  const updates: Promise<any>[] = [];
+
+  // Remove product from old category
   if (oldCategoryId) {
     updates.push(
       ProductCategory.updateOne(
@@ -53,14 +59,18 @@ const updateProductInCategories = async (
       )
     );
   }
-  if (oldSubCategoryId) {
+
+  // Remove product from old subcategories
+  if (oldSubCategoryIds && oldSubCategoryIds.length > 0) {
     updates.push(
-      ProductCategory.updateOne(
-        { _id: oldSubCategoryId },
+      ProductCategory.updateMany(
+        { _id: { $in: oldSubCategoryIds } },
         { $pull: { products: productId } }
       )
     );
   }
+
+  // Add product to new category
   if (newCategoryId) {
     updates.push(
       ProductCategory.updateOne(
@@ -69,14 +79,18 @@ const updateProductInCategories = async (
       )
     );
   }
-  if (newSubCategoryId) {
+
+  // Add product to new subcategories
+  if (newSubCategoryIds && newSubCategoryIds.length > 0) {
     updates.push(
-      ProductCategory.updateOne(
-        { _id: newSubCategoryId },
+      ProductCategory.updateMany(
+        { _id: { $in: newSubCategoryIds } },
         { $push: { products: productId } }
       )
     );
   }
+
+  // Execute all updates in parallel
   await Promise.all(updates);
 };
 
@@ -100,9 +114,14 @@ export const createProduct = async (
     // Validate user input
     if (!validateInput(req, res)) return;
 
-    const { slug, name, subCategory } = body;
+    const { slug, name, subCategory, category } = body;
 
-    // If slug is not provided, use the product name to create the slug
+    // Ensure category is provided
+    if (!category) {
+      throw new CustomError(400, "Category is required");
+    }
+
+    // If slug is not provided, generate one from the name
     const slugToUse = slug
       ? slugify(slug, { lower: true })
       : slugify(name, { lower: true });
@@ -112,44 +131,68 @@ export const createProduct = async (
       throw new CustomError(400, "Slug already in use");
     }
 
-    // If subCategory is provided, fetch it and the parent category
-    let parentCategory = null;
+    // Handle subCategory as an array
+    let subCategoryIds: Types.ObjectId[] = [];
+    let parentCategories: Types.ObjectId[] = [];
+
     if (subCategory) {
-      const subcategory = await ProductCategory.findById(subCategory);
-      if (!subcategory) {
-        throw new CustomError(404, "Subcategory not found");
+      const subCategoryInput = Array.isArray(subCategory)
+        ? subCategory
+        : [subCategory];
+      for (const subCatId of subCategoryInput) {
+        const subcategory = await ProductCategory.findById(subCatId);
+        if (!subcategory) {
+          throw new CustomError(404, `Subcategory ${subCatId} not found`);
+        }
+        const parentCat = await ProductCategory.findById(
+          subcategory.parentCategory
+        );
+        if (!parentCat) {
+          throw new CustomError(
+            404,
+            `Parent category for subcategory ${subCatId} not found`
+          );
+        }
+        subCategoryIds.push(new Types.ObjectId(subCatId));
+        if (!parentCategories.some((id) => id.equals(parentCat._id))) {
+          parentCategories.push(parentCat._id);
+        }
       }
-      parentCategory = await ProductCategory.findById(
-        subcategory.parentCategory
-      );
-      if (!parentCategory) {
-        throw new CustomError(404, "Parent category not found");
+
+      // Validate provided category matches one of the parent categories
+      const categoryId = new Types.ObjectId(category);
+      if (!parentCategories.some((id) => id.equals(categoryId))) {
+        throw new CustomError(
+          400,
+          "Category must be a parent of at least one subcategory"
+        );
       }
     }
 
-    // Create the product with the parent category assigned
+    // Create the product
     const newProduct: ProductTypes = {
       ...body,
-      category: parentCategory ? parentCategory._id : null,
+      category,
+      subCategory: subCategoryIds.map((id) => id.toString()),
       slug: slugToUse,
       createdBy: body.userId || userId,
     };
+
     const createdProduct = await Product.create(newProduct);
 
-    // Update categories
-    if (subCategory && parentCategory) {
-      await updateProductInCategories(
-        createdProduct._id,
-        null,
-        null,
-        parentCategory._id,
-        subCategory
-      );
-    }
+    // Update product-category relationships
+    await updateProductInCategories(
+      createdProduct._id,
+      null,
+      null,
+      createdProduct.category,
+      subCategoryIds.length > 0 ? subCategoryIds : null
+    );
 
-    res
-      .status(201)
-      .json({ message: "Product created successfully", data: createdProduct });
+    res.status(201).json({
+      message: "Product created successfully",
+      data: createdProduct,
+    });
   } catch (error: any) {
     next(new CustomError(500, error.message));
   }
@@ -219,45 +262,79 @@ export const updateProduct = async (
       throw new CustomError(404, "Product not found!");
     }
 
-    // Check if the slug is being updated and validate uniqueness
     if (body.slug && body.slug !== product.slug) {
       const slugToUse = slugify(body.slug, { lower: true });
-      if (!(await isSlugUnique(slugToUse))) {
+      if (!(await isSlugUnique(slugToUse, product._id.toString()))) {
         throw new CustomError(400, "Slug already in use");
       }
       body.slug = slugToUse;
     }
 
-    // If subCategory is provided, fetch it and the parent category
-    let parentCategory = null;
-    let newSubCategoryId = null;
-    if (
-      body.subCategory &&
-      body.subCategory !== product.subCategory?.toString()
-    ) {
-      const newSubcategory = await ProductCategory.findById(body.subCategory);
-      if (!newSubcategory) {
-        throw new CustomError(404, "Subcategory not found");
+    // Handle subCategory array update
+    let newSubCategoryIds: Types.ObjectId[] = [];
+    let parentCategories: Types.ObjectId[] = [];
+
+    if (body.subCategory) {
+      const subCategoryInput = Array.isArray(body.subCategory)
+        ? body.subCategory
+        : [body.subCategory];
+
+      for (const subCatId of subCategoryInput) {
+        const subcategory = await ProductCategory.findById(subCatId);
+        if (!subcategory) {
+          throw new CustomError(404, `Subcategory ${subCatId} not found`);
+        }
+        const parentCat = await ProductCategory.findById(
+          subcategory.parentCategory
+        );
+        if (!parentCat) {
+          throw new CustomError(
+            404,
+            `Parent category for subcategory ${subCatId} not found`
+          );
+        }
+        newSubCategoryIds.push(new Types.ObjectId(subCatId));
+        if (!parentCategories.some((id) => id.equals(parentCat._id))) {
+          parentCategories.push(parentCat._id);
+        }
       }
-      parentCategory = await ProductCategory.findById(
-        newSubcategory.parentCategory
-      );
-      if (!parentCategory) {
-        throw new CustomError(404, "Parent category not found");
+
+      // If category is provided, ensure it matches one of the parent categories
+      if (body.category) {
+        const categoryId = new Types.ObjectId(body.category);
+        if (!parentCategories.some((id) => id.equals(categoryId))) {
+          throw new CustomError(
+            400,
+            "Provided category must be a parent of at least one subcategory"
+          );
+        }
+      } else {
+        // If no category provided, use existing or first parent category
+        body.category = product.category;
       }
-      newSubCategoryId = newSubcategory._id;
     }
 
-    // Update product in categories if subCategory is changing
-    if (newSubCategoryId) {
+    // Update product in categories if subCategory or category is changing
+    const oldSubCategoryIds = product.subCategory
+      ? (product.subCategory as unknown as Types.ObjectId[]).map(
+          (id) => new Types.ObjectId(id)
+        )
+      : [];
+
+    if (
+      body.category?.toString() !== product.category?.toString() ||
+      JSON.stringify(oldSubCategoryIds) !== JSON.stringify(newSubCategoryIds)
+    ) {
       await updateProductInCategories(
         product._id,
         product.category,
-        product.subCategory,
-        parentCategory?._id || null,
-        newSubCategoryId
+        oldSubCategoryIds,
+        body.category || product.category,
+        newSubCategoryIds.length > 0 ? newSubCategoryIds : null
       );
-      body.category = parentCategory?._id || null;
+      if (newSubCategoryIds.length > 0) {
+        body.subCategory = newSubCategoryIds.map((id) => id.toString());
+      }
     }
 
     // Update the product
@@ -302,10 +379,16 @@ export const deleteProduct = async (
     }
 
     // Remove product from categories
+    const oldSubCategoryIds = product.subCategory
+      ? (product.subCategory as unknown as Types.ObjectId[]).map(
+          (id) => new Types.ObjectId(id)
+        )
+      : [];
+
     await updateProductInCategories(
       product._id,
       product.category,
-      product.subCategory,
+      oldSubCategoryIds,
       null,
       null
     );
@@ -343,26 +426,34 @@ export const duplicateProduct = async (
       throw new CustomError(404, "Product not found");
     }
 
+    const subCategoryIds = product.subCategory
+      ? (product.subCategory as unknown as Types.ObjectId[]).map(
+          (id) => new Types.ObjectId(id)
+        )
+      : [];
+
     // Prepare the duplicated product data
     const duplicatedProductData = {
       ...product.toObject(),
       _id: new Types.ObjectId(),
       name: `${product.name} (Copy)`,
       slug: `${product.slug}-copy-${Date.now()}`,
+      subCategory: subCategoryIds.map((id) => id.toString()),
       createdAt: new Date(),
       updatedAt: new Date(),
+      createdBy: userId,
+      updatedBy: null as any,
     };
 
     // Create the duplicated product
     const duplicatedProduct = await Product.create(duplicatedProductData);
 
-    // Add duplicated product to categories
     await updateProductInCategories(
       duplicatedProduct._id,
       null,
       null,
       product.category,
-      product.subCategory
+      subCategoryIds.length > 0 ? subCategoryIds : null
     );
 
     res.status(201).json({

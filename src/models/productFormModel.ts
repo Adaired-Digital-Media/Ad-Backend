@@ -6,7 +6,7 @@ const FormFieldSchema = new Schema<FormField>({
   label: { type: String, required: true },
   placeholder:{ type: String, required: true },
   type: { type: String, required: true },
-  options: [{ label: String, value: String }],
+  options: [{ label: String, value: Number }],
   required: { type: Boolean, default: false },
 });
 

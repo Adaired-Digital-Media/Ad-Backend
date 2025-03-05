@@ -23,7 +23,7 @@ const UserSchema = new Schema<UserTypes>(
     role: {
       type: Schema.Types.ObjectId,
       ref: "Role",
-      default: new mongoose.Types.ObjectId("662f676a0072eaee25b546b8"),
+      default: null,
     },
     googleId: {
       type: String,
@@ -47,9 +47,9 @@ const UserSchema = new Schema<UserTypes>(
       ],
       default: [],
     },
-    userStatus: {
-      type: Boolean,
-      default: false,
+    status: {
+      type: String,
+      default: "Active",
     },
     isVerifiedUser: {
       type: Boolean,

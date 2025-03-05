@@ -11,7 +11,7 @@ export const validateRegister = [
       gmail_remove_dots: true,
     })
     .trim(),
-  check("password", "Password is required")
+  check("password")
     .isStrongPassword({
       minLength: 8,
       minLowercase: 1,
@@ -23,11 +23,11 @@ export const validateRegister = [
       "Password must be at least 8 characters long and contain at least 1 lowercase letter, 1 uppercase letter, 1 number, and 1 special character"
     )
     .optional(),
-  check("contact", "Contact is required")
+  check("contact")
     .isMobilePhone("any")
     .withMessage("Contact must be a valid phone number")
     .optional(),
-  check("userStatus").optional(),
+  check("status").optional(),
 ];
 
 export const validateLogin = [
@@ -41,79 +41,23 @@ export const validateLogin = [
   check("rememberMe").optional().isBoolean(),
 ];
 
-export const validateUpdate = [
-  check("userId", "User ID is required"),
-  check("name", "Name is required").optional().isString().trim(),
-  check("email", "Email is required")
-    .optional()
-    .isEmail()
-    .withMessage("Please enter a valid email")
-    .normalizeEmail({
-      gmail_remove_dots: true,
-    })
-    .trim(),
-  check("password", "Password is required")
-    .optional()
-    .isStrongPassword({
-      minLength: 8,
-      minLowercase: 1,
-      minUppercase: 1,
-      minNumbers: 1,
-      minSymbols: 1,
-    })
-    .withMessage(
-      "Password must be at least 8 characters long and contain at least 1 lowercase letter, 1 uppercase letter, 1 number, and 1 special character"
-    ),
-  check("contact", "Contact is required")
-    .optional()
-    .isMobilePhone("any")
-    .withMessage("Contact must be a valid phone number"),
-];
-
-export const validateUserId = [
-  check("userId", "User ID is required")
-    .notEmpty()
-    .isMongoId()
-    .withMessage("Please enter a valid user ID"),
-];
-
 // ********** Roles **********
 export const validateRole = [
-  check("roleName", "Role name is required").notEmpty().isString().trim(),
-  check("roleDescription", "Role description is required")
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("roleStatus", "Role status is required").notEmpty().isBoolean(),
-  check("rolePermissions", "Role permissions are required")
-    .notEmpty()
-    .isArray(),
+  check("name", "Role name is required").notEmpty().isString().trim(),
+  check("description").optional().isString().trim(),
+  check("status").optional().isBoolean().default(true),
+  check("permissions").isArray().optional(),
 ];
 
 export const validateUpdateRole = [
-  check("roleId", "Role ID is required")
-    .optional()
-    .notEmpty()
-    .isMongoId()
-    .withMessage("Please enter a valid role ID"),
-  check("roleName", "Role name is required")
+  check("name", "Role name is required")
     .optional()
     .notEmpty()
     .isString()
     .trim(),
-  check("roleDescription", "Role description is required")
-    .optional()
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("roleStatus", "Role status is required")
-    .optional()
-    .notEmpty()
-    .isBoolean(),
-  check("rolePermissions", "Role permissions are required")
-    .optional()
-    .notEmpty()
-    .isArray(),
+  check("description").optional().isString().trim(),
+  check("status").optional().isBoolean(),
+  check("permissions").optional().isArray(),
 ];
 
 export const validateRoleId = [
@@ -752,15 +696,16 @@ export const validateCreateProduct = [
   check("description")
     .isString()
     .withMessage("Description is required")
-    .notEmpty()
-    .withMessage("Description should not be empty"),
+    .optional(),
 
   check("category")
-    .optional()
     .isMongoId()
-    .withMessage("Invalid category ID format"),
+    .withMessage("Invalid category ID format")
+    .notEmpty()
+    .withMessage("Category is required"),
 
   check("subCategory")
+    .optional()
     .isMongoId()
     .withMessage("Invalid subCategory ID format")
     .notEmpty()
@@ -785,7 +730,7 @@ export const validateCreateProduct = [
     .optional()
     .isIn(["perWord", "perPost", "perReview", "perMonth", "perQuantity"])
     .withMessage(
-      "Pricing type must be one of 'perWord', 'perPost', 'perReview', or 'fixed'"
+      "Pricing type must be one of 'perWord', 'perPost', 'perReview', 'perMonth' or 'perQuantity'"
     ),
 
   check("stock")
@@ -903,9 +848,9 @@ export const validateUpdateProduct = [
 
   check("pricingType")
     .optional()
-    .isIn(["perWord", "perPost", "perReview", "fixed"])
+    .isIn(["perWord", "perPost", "perReview", "perMonth", "perQuantity"])
     .withMessage(
-      "Pricing type must be one of 'perWord', 'perPost', 'perReview', or 'fixed'"
+      "Pricing type must be one of 'perWord', 'perPost', 'perReview', 'perMonth' or 'perQuantity'"
     ),
 
   check("stock")
@@ -961,7 +906,7 @@ export const validateProductCreateCategory = [
     .withMessage("Description should be a string"),
 
   check("parentCategory")
-    .optional()
+    .optional({ values: "null" })
     .isMongoId()
     .withMessage("Invalid parent category ID format"),
 
@@ -1012,8 +957,8 @@ export const validateProductCreateCategory = [
 
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Archived"])
-    .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
+    .isIn(["Active", "Inactive", "Draft"])
+    .withMessage("Status must be one of 'Active', 'Inactive', or 'Draft'"),
 
   check("createdBy")
     .optional()
@@ -1091,8 +1036,8 @@ export const validateProductUpdateCategory = [
 
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Archived"])
-    .withMessage("Status must be one of 'Active', 'Inactive', or 'Archived'"),
+    .isIn(["Active", "Inactive", "Draft"])
+    .withMessage("Status must be one of 'Active', 'Inactive', or 'Draft'"),
 
   check("createdBy")
     .optional()

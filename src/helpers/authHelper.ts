@@ -1,20 +1,21 @@
 import { CustomError } from "../middlewares/error";
 import User from "../models/userModel";
 import Role from "../models/roleModel";
+import { Types } from "mongoose";
 
 interface rolePermission {
-  entityName: string;
-  entityValues: number[];
+  module: string;
+  permissions: number[];
 }
 
 // Cache for role permissions
-const rolePermissionsCache = new Map();
+const rolePermissionsCache = new Map<Types.ObjectId, rolePermission[]>();
 
 const checkPermission = async (
   userId: string,
   entity: string,
   action: number
-) => {
+): Promise<boolean> => {
   try {
     // Check if user is admin
     const user = await User.findById(userId);
@@ -33,13 +34,13 @@ const checkPermission = async (
       if (!roleInfo) {
         throw new CustomError(404, "Role not found");
       }
-      rolePermissions = roleInfo.rolePermissions;
+      rolePermissions = roleInfo.permissions;
       rolePermissionsCache.set(user.role, rolePermissions);
     }
 
     // Check if user has permission
     const hasPermission = rolePermissions.some((role: rolePermission) => {
-      return role.entityName === entity && role.entityValues.includes(action);
+      return role.module === entity && role.permissions.includes(action);
     });
 
     // Return true if user has permission

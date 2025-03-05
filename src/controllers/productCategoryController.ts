@@ -83,99 +83,94 @@ export const readCategories = async (
   res: Response,
   next: NextFunction
 ) => {
-  let { identifier } = req.query;
-  const { children, products, childrenProducts } = req.query;
-
   try {
-    let category;
-    const pipeline: any[] = [];
+    let { identifier, children, products, childrenProducts } = req.query;
 
-    identifier = String(identifier);
-
-    // Match based on the identifier (either ObjectId or slug)
-    if (identifier) {
-      if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-        // If identifier is an ObjectId
-        pipeline.push({ $match: { _id: new Types.ObjectId(identifier) } });
-      } else {
-        // If identifier is a slug
-        pipeline.push({ $match: { slug: identifier } });
-      }
-
-      // Conditionally populate the `children` field if `children=true` in query
-      if (children === "true") {
-        pipeline.push({
-          $lookup: {
-            from: "productcategories",
-            localField: "children",
-            foreignField: "_id",
-            as: "children",
-          },
-        });
-
-        if (childrenProducts === "true") {
-          pipeline.push(
-            { $unwind: "$children" },
-            {
-              $lookup: {
-                from: "products",
-                localField: "children.products",
-                foreignField: "_id",
-                as: "children.products",
-              },
-            },
-            {
-              $group: {
-                _id: "$_id",
-                children: { $push: "$children" },
-                root: { $first: "$$ROOT" },
-              },
-            },
-            {
-              $replaceRoot: {
-                newRoot: {
-                  $mergeObjects: ["$root", { children: "$children" }],
-                },
-              },
-            }
-          );
-        }
-      }
-
-      // Conditionally populate the `products` field if `products=true` in query
-      if (products === "true") {
-        pipeline.push({
-          $lookup: {
-            from: "products",
-            localField: "products",
-            foreignField: "_id",
-            as: "products",
-          },
-        });
-      }
-
-      // Execute the aggregation pipeline
-      category = await Category.aggregate(pipeline);
-
-      // If no category was found, return a 404 error
-      if (!category || category.length === 0) {
-        return next(new CustomError(404, "Category not found!"));
-      }
-
-      return res.status(200).json({
-        message: "Category found",
-        data: category[0], // Retrieve the first document in the result array
-      });
-    } else {
-      // If no identifier is provided, return all categories without populating children or products
-      const categories = await Category.find().lean();
+    // If no identifier is provided, return all categories
+    if (!identifier) {
+      const categories = await Category.find().populate("parentCategory");
       return res.status(200).json({
         message: "All categories",
         data: categories,
       });
     }
-  } catch (error) {
-    return next(error);
+
+    identifier = String(identifier);
+    const pipeline: any[] = [];
+
+    // Match based on the identifier (ObjectId or slug)
+    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+      pipeline.push({ $match: { _id: new Types.ObjectId(identifier) } });
+    } else {
+      pipeline.push({ $match: { slug: identifier } });
+    }
+
+    // Populate `children` if `children=true`
+    if (children === "true") {
+      pipeline.push({
+        $lookup: {
+          from: "productcategories",
+          localField: "children",
+          foreignField: "_id",
+          as: "children",
+        },
+      });
+
+      // Populate `children.products` if `childrenProducts=true`
+      if (childrenProducts === "true") {
+        pipeline.push(
+          { $unwind: "$children" },
+          {
+            $lookup: {
+              from: "products",
+              localField: "children.products",
+              foreignField: "_id",
+              as: "children.products",
+            },
+          },
+          {
+            $group: {
+              _id: "$_id",
+              children: { $push: "$children" },
+              root: { $first: "$$ROOT" },
+            },
+          },
+          {
+            $replaceRoot: {
+              newRoot: {
+                $mergeObjects: ["$root", { children: "$children" }],
+              },
+            },
+          }
+        );
+      }
+    }
+
+    // Populate `products` if `products=true`
+    if (products === "true") {
+      pipeline.push({
+        $lookup: {
+          from: "products",
+          localField: "products",
+          foreignField: "_id",
+          as: "products",
+        },
+      });
+    }
+
+    // Execute aggregation
+    const category = await Category.aggregate(pipeline);
+
+    if (!category || category.length === 0) {
+      return next(new CustomError(404, "Category not found!"));
+    }
+
+    return res.status(200).json({
+      message: "Category found",
+      data: category[0],
+    });
+  } catch (error: any) {
+    return next(new CustomError(500, error.message));
   }
 };
 
@@ -280,8 +275,8 @@ export const deleteCategory = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { userId, params } = req;
-  const { identifier } = params;
+  const { userId } = req;
+  let { identifier } = req.query;
 
   try {
     // Check Permission
@@ -289,6 +284,8 @@ export const deleteCategory = async (
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }
+
+    identifier = String(identifier);
 
     // Find the category (either by ID or slug)
     let category;
@@ -310,8 +307,8 @@ export const deleteCategory = async (
     await Category.findByIdAndDelete(category._id);
 
     res.status(200).json({ message: "Category deleted successfully" });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    return next(new CustomError(500, error.message));
   }
 };
 

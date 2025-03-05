@@ -5,10 +5,18 @@ const ProductSchema = new Schema<ProductTypes>(
   {
     featuredImage: { type: String, required: true },
     name: { type: String, required: true },
-    description: { type: String, required: true },
-    category: { type: Schema.Types.ObjectId, ref: "ProductCategory" },
+    description: { type: String },
+    category: {
+      type: Schema.Types.ObjectId,
+      ref: "ProductCategory",
+      required: true,
+    },
     subCategory: [
-      { type: Schema.Types.ObjectId, ref: "ProductCategory", required: true },
+      {
+        type: Schema.Types.ObjectId,
+        ref: "ProductCategory",
+        default: null,
+      },
     ],
     minimumQuantity: { type: Number, default: 1 },
     minimumWords: { type: Number, default: null },

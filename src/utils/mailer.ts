@@ -1,11 +1,5 @@
 import nodemailer from "nodemailer";
 
-/**
- * Send an email using the configured transporter.
- * @param to - The recipient's email address.
- * @param subject - The subject of the email.
- * @param html - The HTML content of the email.
- */
 export const sendEmail = async (
   to: string,
   subject: string,

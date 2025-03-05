@@ -1,17 +1,19 @@
 import express, { Router } from "express";
 import { validateRole, validateUpdateRole } from "../helpers/validator";
 import {
-  newRole,
+  createRole,
   updateRole,
   findRoles,
   deleteRole,
+  duplicateRole,
 } from "../controllers/roleController";
 import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
-router.post("/createNewRole", verifyToken, validateRole, newRole);
-router.get("/readRoles/:roleId?", findRoles);
-router.put("/updateRole/:roleId", verifyToken, validateUpdateRole, updateRole);
-router.delete("/deleteRole/:roleId?", verifyToken, deleteRole);
+router.post("/create", verifyToken, validateRole, createRole);
+router.get("/find", verifyToken, findRoles);
+router.patch("/update", verifyToken, validateUpdateRole, updateRole);
+router.delete("/delete", verifyToken, deleteRole);
+router.post("/duplicate", verifyToken, duplicateRole);
 
 export default router;

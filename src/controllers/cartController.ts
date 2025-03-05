@@ -114,6 +114,8 @@ export const syncOrAddToCart = async (
     const { userId, body } = req;
     const { products } = body;
 
+    console.log(products)
+
     if (!products || products.length === 0) {
       console.log(products);
       return next(new CustomError(400, "Cart cannot be empty."));
@@ -200,7 +202,7 @@ export const getUserCart = async (
     });
 
     if (!cart || (customerId && cart.userId.toString() !== customerId)) {
-      return res.status(404).json({ message: "Cart not found" });
+      return res.status(404).json({ message: "Cart not found for this user." });
     }
 
     return res.status(200).json({

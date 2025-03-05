@@ -2,183 +2,218 @@ import Role from "../models/roleModel";
 import User from "../models/userModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
-import { validationResult } from "express-validator";
+import { validateInput } from "../utils/validateInput";
 import checkPermission from "../helpers/authHelper";
+import { RoleTypes } from "../types/roleTypes";
+import mongoose from "mongoose";
 
-// ********** Create role **********
-const newRole = async (req: Request, res: Response, next: NextFunction) => {
+// ***************************************
+// ********** Create Role ****************
+// ***************************************
+const createRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const permissionCheck = await checkPermission(req.userId, "roles", 0);
-    if (!permissionCheck) return;
+    const { userId, body } = req;
+
+    if (!(await checkPermission(userId, "roles", 0)))
+      throw new CustomError(403, "Permission denied");
 
     // Validate user input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
-      });
-    }
+    if (!validateInput(req, res)) return;
 
-    const { roleName, roleDescription, roleStatus, rolePermissions } = req.body;
-    // check if roleName is already in use
-    const existingRole = await Role.findOne({
-      roleName: {
-        $regex: roleName,
-        $options: "i",
-      },
-    });
-    if (existingRole) {
-      throw new CustomError(400, "Role with this name already exists");
-    }
     // Create new role
-    const newRole = new Role({
-      roleName,
-      roleDescription,
-      roleStatus,
-      rolePermissions,
-    });
-    await newRole.save();
+    const createdRole = await Role.create(body);
     res.status(201).json({
       message: "Role created successfully",
-      data: newRole,
+      data: createdRole,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    if (error.code === 11000) {
+      // Duplicate key error from the case-insensitive unique index
+      throw new CustomError(400, "Role name already exists");
+    }
+    next(new CustomError(500, error.message));
   }
 };
 
-// ********** Read Roles **********
+// ***************************************
+// ********** Read Roles *****************
+// ***************************************
 const findRoles = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { roleId } = req.params;
-    if (roleId) {
-      const role = await Role.findById(roleId).lean();
+    const { userId } = req;
+    const { identifier } = req.query;
+
+    if (!(await checkPermission(userId, "roles", 1)))
+      throw new CustomError(403, "Permission denied");
+
+    if (identifier) {
+      const role = await Role.findById(identifier).populate("users").lean();
       res.status(200).json({
         message: "Role fetched successfully",
         data: role,
       });
     } else {
-      const roles = await Role.find();
+      const roles = await Role.find().populate("users", "_id name image").lean();
       res.status(200).json({
         message: "Roles fetched successfully",
         data: roles,
       });
     }
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
   }
 };
 
-// ********** Update Role **********
-
+// ***************************************
+// ********** Update Roles ***************
+// ***************************************
 const updateRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { roleId } = req.params;
-    const { roleName, rolePermissions, ...updateData } = req.body;
+    const { userId, body } = req;
+    const roleId = req.query.identifier as string;
 
-    // Check if the user has the required permission to update the role
-    const permissionCheck = await checkPermission(req.userId, "roles", 2);
-    if (!permissionCheck) return res.status(403).json({ message: "Access denied" });
+    if (!roleId) throw new CustomError(400, "Role ID is required");
+    if (!(await checkPermission(userId, "roles", 2)))
+      throw new CustomError(403, "Permission denied");
+    if (!validateInput(req, res)) return;
 
-    // Validate the request data
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
+    // Prepare update data based on schema
+    const updateData: Partial<RoleTypes> = {};
+    if (body.name) updateData.name = body.name;
+    if (body.description) updateData.description = body.description;
+    if (typeof body.status === "boolean") updateData.status = body.status;
+    if (body.permissions) updateData.permissions = body.permissions;
+
+    // If no changes provided, return early
+    if (Object.keys(updateData).length === 0) {
+      return res.status(200).json({
+        message: "No changes provided",
       });
     }
 
-    // Check if the role name is available (ignore the current role's name)
-    if (roleName) {
-      const existingRole = await Role.findOne({
-        roleName: { $regex: new RegExp(`^${roleName}$`, "i") }, // Case-insensitive exact match
-        _id: { $ne: roleId }, // Exclude the current role
-      });
+    // Single DB call to update the role
+    const updatedRole = await Role.findOneAndUpdate(
+      { _id: roleId },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
-      if (existingRole) {
-        throw new CustomError(400, "Role with this name already exists");
-      }
-    }
-
-    // Prepare update operations
-    const updateOperations = [];
-
-    // Update role data if any fields other than rolePermissions are provided
-    if (Object.keys(updateData).length > 0) {
-      updateOperations.push({
-        updateOne: {
-          filter: { _id: roleId },
-          update: { $set: updateData },
-        },
-      });
-    }
-
-    // Update rolePermissions if provided
-    if (rolePermissions) {
-      updateOperations.push({
-        updateOne: {
-          filter: { _id: roleId },
-          update: { $set: { rolePermissions } },
-        },
-      });
-    }
-
-    // Update roleName if provided
-    if (roleName) {
-      updateOperations.push({
-        updateOne: {
-          filter: { _id: roleId },
-          update: { $set: { roleName } },
-        },
-      });
-    }
-
-    // Execute bulk write operation if there are updates to be made
-    if (updateOperations.length > 0) {
-      await Role.bulkWrite(updateOperations);
-    }
-
-    // Fetch updated role details
-    const updatedRole = await Role.findById(roleId);
-
-    res.status(200).json({
-      message: "Role updated successfully",
-      data: updatedRole,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ********** Delete Role ***********
-const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { roleId } = req.params;
-
-    const permissionCheck = await checkPermission(req.userId, "roles", 3);
-    if (!permissionCheck) return;
-
-    if (!roleId) {
-      throw new CustomError(400, "Invalid input");
-    }
-
-    const role = await Role.findById(roleId);
-    if (!role) {
+    if (!updatedRole) {
       throw new CustomError(404, "Role not found");
     }
 
-    await Role.deleteOne({ _id: roleId });
-
-    // After Deleting the role assign (user) role to user
-    await User.updateMany({ role: roleId }, { $set: { role: null } });
-    res.status(200).json({
-      message: "Role deleted successfully",
+    return res.status(200).json({
+      message: "Role updated successfully",
+      data: updatedRole,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    if (error.code === 11000) {
+      // Duplicate key error from the case-insensitive unique index
+      throw new CustomError(400, "Role name already exists");
+    }
+    next(new CustomError(500, error.message));
   }
 };
 
-export { newRole, updateRole, findRoles, deleteRole };
+// ***************************************
+// ********** Delete Roles ***************
+// ***************************************
+const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { userId } = req;
+    const roleId = req.query.identifier as string;
+
+    if (!roleId) throw new CustomError(400, "Role ID is required");
+    if (!(await checkPermission(userId, "roles", 3)))
+      throw new CustomError(403, "Permission denied");
+
+    const role = (await Role.findByIdAndDelete(roleId)).$session(session);
+    if (!role) {
+      await session.abortTransaction();
+      throw new CustomError(404, "Role not found");
+    }
+    // After Deleting the role assign (user) role to user
+    await User.updateMany(
+      { role: roleId },
+      { $set: { role: null } },
+      { session: session }
+    );
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "Role deleted successfully",
+      data: role,
+    });
+  } catch (error: any) {
+    await session.abortTransaction();
+    next(new CustomError(500, error.message));
+  } finally {
+    session.endSession();
+  }
+};
+
+// ***************************************
+// ********** Duplicate Role *************
+// ***************************************
+const duplicateRole = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+    const roleId = req.query.identifier as string;
+
+    if (!roleId) throw new CustomError(400, "Role ID is required");
+
+    // Check permission to create roles
+    if (!(await checkPermission(userId, "roles", 0)))
+      throw new CustomError(403, "Permission denied");
+
+    // Fetch the existing role
+    const originalRole = await Role.findById(roleId).lean();
+    if (!originalRole) {
+      throw new CustomError(404, "Role not found");
+    }
+
+    // Prepare the duplicated role data
+    const { name, description, status, permissions } = originalRole;
+    let newName = `${name} - Copy`;
+
+    // Ensure the new name is unique (case-insensitive)
+    let counter = 1;
+    while (
+      await Role.findOne({
+        name: { $regex: new RegExp(`^${newName}$`, "i") },
+      })
+    ) {
+      newName = `${name} - Copy ${counter}`;
+      counter++;
+    }
+
+    const duplicateData: Partial<RoleTypes> = {
+      name: newName,
+      description,
+      status,
+      permissions,
+    };
+
+    // Create the duplicated role
+    const duplicatedRole = await Role.create(duplicateData);
+
+    res.status(201).json({
+      message: "Role duplicated successfully",
+      data: duplicatedRole,
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      // Shouldn't happen due to name uniqueness check, but included for safety
+      throw new CustomError(400, "Role name conflict occurred");
+    }
+    next(new CustomError(500, error.message));
+  }
+};
+
+export { createRole, updateRole, findRoles, deleteRole, duplicateRole };

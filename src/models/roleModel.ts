@@ -3,23 +3,26 @@ import { RoleTypes } from "../types/roleTypes";
 
 const roleSchema = new Schema(
   {
-    roleName: {
+    name: {
       type: String,
       required: true,
-      unique: true,
+      index: {
+        unique: true,
+        collation: { locale: "en", strength: 2 },
+      },
     },
-    roleDescription: {
-      type: String,
-      required: true,
-    },
-    roleStatus: {
-      type: Boolean,
-      required: true,
-    },
-    rolePermissions: [
+    description: { type: String },
+    status: { type: Boolean, default: true },
+    permissions: [
       {
-        entityName: String,
-        entityValues: [Number],
+        module: String,
+        permissions: [Number],
+      },
+    ],
+    users: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
       },
     ],
   },
@@ -28,6 +31,6 @@ const roleSchema = new Schema(
   }
 );
 
-const Role = mongoose.model<RoleTypes>("Role", roleSchema);
+const Role = mongoose.model<RoleTypes & Document>("Role", roleSchema);
 
 export default Role;

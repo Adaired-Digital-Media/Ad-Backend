@@ -11,7 +11,7 @@ export type UserTypes = {
   role?: Types.ObjectId;
   cart?: Types.ObjectId;
   wishlist?: { productId: Types.ObjectId; dateAdded: Date }[];
-  userStatus?: boolean;
+  status?: string;
   isVerifiedUser?: boolean;
   refreshToken?: string | null;
   googleId?: string;

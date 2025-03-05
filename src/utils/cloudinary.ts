@@ -1,10 +1,8 @@
 import dotenv from "dotenv";
-dotenv.config();
-
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
-import fs from "fs";
 import { CustomError } from "../middlewares/error";
 
+dotenv.config();
 // Cloudinary Configuration
 try {
   cloudinary.config({
@@ -17,54 +15,145 @@ try {
   throw new CustomError(500, "Cloudinary configuration failed");
 }
 
-const removeFileExtension = (filename: string) => {
-  const dotIndex = filename.lastIndexOf(".");
-  if (dotIndex === -1) return filename; // No extension found
-  return filename.slice(0, dotIndex); // Slice to remove extension
-};
-
 // ********** Upload images to Cloudinary **********
-export const uploadImages = async (
-  files: Express.Multer.File[] | undefined
-) => {
+export const uploadImages = async (files: Express.Multer.File[]) => {
   try {
-    if (!files || files.length === 0) return null;
+    const uploadPromises = files.map((file) => {
+      return new Promise<UploadApiResponse>((resolve, reject) => {
+        const isSvg = file.mimetype === "image/svg+xml";
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: isSvg ? "image" : "auto",
+          },
+          (error, result) => {
+            if (error) {
+              reject({ error, file: file.originalname });
+            } else if (result) {
+              resolve({ ...result });
+            } else {
+              reject({
+                error: new Error("Upload failed"),
+                file: file.originalname,
+              });
+            }
+          }
+        );
 
-    const uploadPromises = files.map((file) =>
-      cloudinary.uploader
-        .upload(file.path, {
-          public_id: removeFileExtension(file.filename),
-          resource_type: "auto",
-        })
-        .then((result) => {
-          const optimizedUrl = cloudinary.url(result.public_id, {
-            resource_type: "auto",
-            transformation: [{ fetch_format: "auto", quality: "auto" }],
-            secure: true,
-          });
-          return { ...result, optimizedUrl };
-        })
-        .catch((error) => {
-          console.error(`Error uploading file ${file.path}:`, error);
-          throw error;
-        })
-    );
-    const results = await Promise.all(uploadPromises);
-    return results;
-  } catch (error) {
-    files.forEach((file) => {
-      try {
-        fs.unlinkSync(file.path);
-      } catch (unlinkError) {
-        console.error(`Error deleting file ${file.path}:`, unlinkError);
-      }
+        uploadStream.end(file.buffer);
+      });
     });
+
+    const results = await Promise.allSettled(uploadPromises);
+
+    const successfulUploads = results
+      .filter((result) => result.status === "fulfilled")
+      .map(
+        (result) => (result as PromiseFulfilledResult<UploadApiResponse>).value
+      );
+
+    const failedUploads = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => (result as PromiseRejectedResult).reason);
+
+    if (failedUploads.length > 0) {
+      console.error("Failed uploads:", failedUploads);
+    }
+
+    // Function to fetch all images with retry logic
+    async function fetchAllImagesWithRetry(
+      maxRetries = 5,
+      delayMs = 1000
+    ): Promise<any[]> {
+      // If no successful uploads, just fetch once
+      if (successfulUploads.length === 0) {
+        let allImages: any[] = [];
+        let nextCursor: string | undefined = undefined;
+
+        do {
+          const response = await cloudinary.search
+            .expression('resource_type:image')
+            .max_results(500)
+            .next_cursor(nextCursor)
+            .sort_by('created_at', 'desc')
+            .execute()
+            .catch((error) => {
+              console.error("Error fetching images:", error);
+              return { resources: [], next_cursor: undefined };
+            });
+
+          allImages = allImages.concat(response.resources);
+          nextCursor = response.next_cursor;
+        } while (nextCursor);
+
+        return allImages;
+      }
+
+      // Retry logic for when there are new uploads
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        let allImages: any[] = [];
+        let nextCursor: string | undefined = undefined;
+
+        do {
+          const response = await cloudinary.search
+            .expression('resource_type:image')
+            .max_results(500)
+            .next_cursor(nextCursor)
+            .sort_by('created_at', 'desc')
+            .execute()
+            .catch((error) => {
+              console.error(`Fetch attempt ${attempt} failed:`, error);
+              return { resources: [], next_cursor: undefined };
+            });
+
+          allImages = allImages.concat(response.resources);
+          nextCursor = response.next_cursor;
+        } while (nextCursor);
+
+        // Verify all successful uploads are present
+        const allUploadsPresent = successfulUploads.every(upload =>
+          allImages.some(img => img.public_id === upload.public_id)
+        );
+
+        if (allUploadsPresent) {
+          return allImages;
+        }
+
+        console.log(`Attempt ${attempt}/${maxRetries}: Waiting for new uploads to index...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+
+      // If we reach here, retries failed - fetch one last time and return what we have
+      console.warn("Max retries reached - returning available images");
+      let allImages: any[] = [];
+      let nextCursor: string | undefined = undefined;
+
+      do {
+        const response = await cloudinary.search
+          .expression('resource_type:image')
+          .max_results(500)
+          .next_cursor(nextCursor)
+          .sort_by('created_at', 'desc')
+          .execute();
+        
+        allImages = allImages.concat(response.resources);
+        nextCursor = response.next_cursor;
+      } while (nextCursor);
+
+      return allImages;
+    }
+
+    const allImages = await fetchAllImagesWithRetry();
+
+    return {
+      successfulUploads,
+      failedUploads,
+      allImages,
+    };
+  } catch (error) {
     throw new CustomError(500, "Image upload failed: " + error);
   }
 };
-
 // *********** Fetch Image By Public ID **********
-
 export const fetchImageByPublicId = async (public_id: string) => {
   try {
     const result = await cloudinary.search
@@ -79,45 +168,33 @@ export const fetchImageByPublicId = async (public_id: string) => {
 
 // ********** Fetch All images from Cloudinary with Pagination **********
 export const fetchImagesInFolder = async (
-  page: number = 1,
-  limit: number = 100,
-  fileType: "svg" | "non-svg" | "all" = "all" 
+  fileType: "svg" | "non-svg" | "all" = "all"
 ) => {
   try {
     let resources: any[] = [];
     let nextCursor: string | undefined = undefined;
-    const maxResults = Math.min(limit, 500);
-    let skip = (page - 1) * limit;
 
     // Constructing the search expression based on the fileType parameter
     let expression = `folder:""`;
     if (fileType === "svg") {
-      expression += ` AND resource_type:image AND format:svg`; // Only SVG images
+      expression += ` AND resource_type:image AND format:svg`;
     } else if (fileType === "non-svg") {
-      expression += ` AND resource_type:image AND NOT format:svg`; // All non-SVG images
-    } // If "all", we don't modify the expression
+      expression += ` AND resource_type:image AND NOT format:svg`;
+    }
 
     do {
       const { resources: batch, next_cursor } = await cloudinary.search
         .expression(expression)
         .sort_by("created_at", "desc")
-        .max_results(maxResults)
+        .max_results(50)
         .with_field("context")
         .next_cursor(nextCursor)
         .execute();
 
-      if (skip > 0) {
-        if (skip < batch.length) {
-          resources = resources.concat(batch.slice(skip));
-        }
-        skip = 0;
-      } else {
-        resources = resources.concat(batch);
-      }
+      resources = resources.concat(batch);
       nextCursor = next_cursor;
-    } while (nextCursor && resources.length < limit);
+    } while (nextCursor);
 
-    resources = resources.slice(0, limit);
     return resources;
   } catch (error) {
     console.error("Error fetching images from Cloudinary:", error);
@@ -141,16 +218,16 @@ export const deleteImage = async (public_id: string) => {
 // ********** Edit image info from Cloudinary **********
 export const editImageInfo = async (
   public_id: string,
-  title?: string,
-  description?: string
+  caption?: string,
+  alt?: string
 ) => {
   try {
     const updateOptions: any = {};
-    if (title) {
-      updateOptions.context = { caption: title };
+    if (caption) {
+      updateOptions.context = { caption: caption };
     }
-    if (description) {
-      updateOptions.context = { ...updateOptions.context, alt: description };
+    if (alt) {
+      updateOptions.context = { ...updateOptions.context, alt: alt };
     }
     const result = await cloudinary.uploader.explicit(public_id, {
       type: "upload",
@@ -160,5 +237,18 @@ export const editImageInfo = async (
   } catch (error) {
     console.error("Error editing image info:", error);
     throw new CustomError(500, `Failed to edit image info: ${error}`);
+  }
+};
+
+// ********** Get Cloudinary Storage Usage ***********
+export const getCloudinaryStorageUsage = async () => {
+  try {
+    const response = await cloudinary.api.usage();
+    return response;
+  } catch (error) {
+    throw new CustomError(
+      500,
+      `Failed to fetch Cloudinary storage usage info: ${error}`
+    );
   }
 };
