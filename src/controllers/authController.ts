@@ -12,7 +12,7 @@ import Role from "../models/roleModel";
 // Token generation utilities
 const generateAccessToken = (userId: string): string =>
   jwt.sign({ _id: userId }, process.env.JWT_SECRET as string, {
-    expiresIn: "30d",
+    expiresIn: "7d",
   });
 
 const generateRefreshToken = (userId: string): string =>
