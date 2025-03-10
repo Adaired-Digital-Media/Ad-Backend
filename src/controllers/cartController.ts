@@ -189,8 +189,8 @@ export const getUserCart = async (
     }
 
     // Fetch cart based on customerId or all carts
-    const query = customerId ? { userId: customerId } : {};
-    const cart = await Cart.findOne(query).populate({
+    const targetUserId = customerId ? customerId : userId;
+    const cart = await Cart.findOne({ userId: targetUserId }).populate({
       path: "products.product",
       populate: {
         path: "subCategory",
@@ -204,7 +204,7 @@ export const getUserCart = async (
 
     return res.status(200).json({
       message: "Cart data fetched successfully",
-      cart
+      cart,
     });
   } catch (error: any) {
     next(new CustomError(500, error.message));
@@ -302,7 +302,7 @@ export const updateCart = async (
 
     // Capture original product data for comparison
     const originalProduct = { ...cart.products[productIndex].toObject() };
-    delete originalProduct._id; 
+    delete originalProduct._id;
 
     // Update the product fields
     const product = cart.products[productIndex];

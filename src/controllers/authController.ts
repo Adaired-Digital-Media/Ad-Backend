@@ -132,6 +132,7 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     if (!user) {
       throw new CustomError(400, "User not found");
     }
+    console.log("User Found : ", user)
 
     // Verify password
     if (!user.password || !(await bcrypt.compare(password, user.password))) {
