@@ -22,7 +22,7 @@ import cartRoute from "./routes/cartRoute";
 import orderRoute from "./routes/orderRoute";
 
 const app: Application = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
 dotenv.config();
 
