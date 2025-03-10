@@ -24,9 +24,13 @@ export const validateRegister = [
     )
     .optional(),
   check("contact")
-    .isMobilePhone("any")
-    .withMessage("Contact must be a valid phone number")
-    .optional(),
+    .optional()
+    .custom((value) => {
+      if (!value) return true;
+      const phonePattern = /^\+?[1-9]\d{6,14}$/;
+      return phonePattern.test(value);
+    })
+    .withMessage("Contact must be a valid phone number"),
   check("status").optional(),
 ];
 

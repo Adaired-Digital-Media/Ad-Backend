@@ -197,6 +197,14 @@ export const getUserCart = async (
         select: "name",
       },
     });
+    // const query = customerId ? { userId: customerId } : {};
+    // const cart = await Cart.findOne(query).populate({
+    //   path: "products.product",
+    //   populate: {
+    //     path: "subCategory",
+    //     select: "name",
+    //   },
+    // });
 
     if (!cart || (customerId && cart.userId.toString() !== customerId)) {
       return res.status(404).json({ message: "Cart not found for this user." });
