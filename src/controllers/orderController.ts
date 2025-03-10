@@ -397,16 +397,35 @@ export const getOrdersByUserId = async (
 ) => {
   try {
     const { userId } = req;
-    const { orderId } = req.query;
+    const { orderNumber } = req.query;
 
     let orders;
-    if (orderId) {
-      orders = await Order.findOne({ userId, _id: orderId });
+    if (orderNumber) {
+      orders = await Order.findOne({ userId, orderNumber: orderNumber })
+        .populate({
+          path: "products.product",
+          populate: {
+            path: "category",
+            model: "ProductCategory",
+            select: "_id name",
+          },
+        })
+        .lean();
       if (!orders) {
         return res.status(404).json({ message: "Order not found." });
       }
     } else {
-      orders = await Order.find({ userId }).sort({ createdAt: -1 });
+      orders = await Order.find({ userId })
+        .populate({
+          path: "products.product",
+          populate: {
+            path: "category",
+            model: "ProductCategory",
+            select: "_id name",
+          },
+        })
+        .sort({ createdAt: -1 })
+        .lean();
     }
 
     res.status(200).json({ data: orders });

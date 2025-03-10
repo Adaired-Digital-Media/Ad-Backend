@@ -9,6 +9,7 @@ export interface CartProduct {
   additionalInfo?: string;
   totalPrice: number;
   addedAt?: Date;
+  [key: string]: any;
 }
 
 export interface CartTypes {

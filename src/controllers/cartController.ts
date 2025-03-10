@@ -114,10 +114,7 @@ export const syncOrAddToCart = async (
     const { userId, body } = req;
     const { products } = body;
 
-    console.log(products)
-
     if (!products || products.length === 0) {
-      console.log(products);
       return next(new CustomError(400, "Cart cannot be empty."));
     }
 
@@ -217,6 +214,65 @@ export const getUserCart = async (
 // ***************************************
 // ********* Update Cart Product *********
 // ***************************************
+// export const updateCart = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId } = req;
+//     const { cartItemId, ...updateFields } = req.body;
+
+//     if (!cartItemId) {
+//       return next(new CustomError(400, "Product entry ID is required."));
+//     }
+
+//     // Find the user's cart
+//     const cart = await Cart.findOne({ userId });
+//     if (!cart) {
+//       return next(new CustomError(404, "Cart not found."));
+//     }
+
+//     // Find the specific product entry by its unique ID
+//     const productIndex = cart.products.findIndex(
+//       (p) => p._id.toString() === cartItemId
+//     );
+//     if (productIndex === -1) {
+//       return next(new CustomError(404, "Product entry not found in cart."));
+//     }
+
+//     // Update the product fields
+//     const product = cart.products[productIndex];
+//     Object.keys(updateFields).forEach((key) => {
+//       if (key in product && updateFields[key] !== undefined) {
+//         (product as any)[key] = updateFields[key];
+//       }
+//     });
+
+//     // Recalculate total quantity and total price
+//     recalculateCartTotals(cart);
+
+//     // Save the updated cart
+//     await cart.save();
+
+//     // Populate the product field in the cart
+//     const populatedCart = await Cart.findById(cart._id).populate({
+//       path: "products.product",
+//     });
+
+//     if (!populatedCart) {
+//       return next(new CustomError(404, "Cart not found after population."));
+//     }
+
+//     res.status(200).json({
+//       message: "Cart updated successfully",
+//       cart: populatedCart,
+//     });
+//   } catch (error: any) {
+//     next(new CustomError(500, error.message));
+//   }
+// };
+
 export const updateCart = async (
   req: Request,
   res: Response,
@@ -244,11 +300,42 @@ export const updateCart = async (
       return next(new CustomError(404, "Product entry not found in cart."));
     }
 
+    // Capture original product data for comparison
+    const originalProduct = { ...cart.products[productIndex].toObject() };
+    delete originalProduct._id; 
+
     // Update the product fields
     const product = cart.products[productIndex];
+    const updatedProduct: Record<string, any> = { ...product.toObject() };
+    let hasChanges = false;
+
     Object.keys(updateFields).forEach((key) => {
       if (key in product && updateFields[key] !== undefined) {
-        (product as any)[key] = updateFields[key];
+        updatedProduct[key] = updateFields[key];
+        if (originalProduct[key] !== updateFields[key]) {
+          hasChanges = true;
+        }
+      }
+    });
+
+    // If no changes detected, return early
+    if (!hasChanges) {
+      const populatedCart = await Cart.findById(cart._id).populate({
+        path: "products.product",
+      });
+      if (!populatedCart) {
+        return next(new CustomError(404, "Cart not found after population."));
+      }
+      return res.status(200).json({
+        message: "No changes in cart data",
+        cart: populatedCart,
+      });
+    }
+
+    // Apply updates to the cart product
+    Object.keys(updatedProduct).forEach((key) => {
+      if (key in product && updatedProduct[key] !== undefined) {
+        (product as any)[key] = updatedProduct[key];
       }
     });
 
@@ -275,7 +362,6 @@ export const updateCart = async (
     next(new CustomError(500, error.message));
   }
 };
-
 // ***************************************
 // ***** Remove Product from Cart ********
 // ***************************************

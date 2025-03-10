@@ -18,7 +18,7 @@ router.post("/login", validateLogin, login);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", verifyToken, logout);
 router.post("/forgot-password", forgotPassword);
-router.patch("/reset-password", resetPassword);
+router.patch("/reset-password", verifyToken, resetPassword);
 router.post("/send-verification-email", sendVerificationEmail);
 router.get("/verify-user", verifyUser);
 
