@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rimraf build/",
     "copy-files": "copyfiles -u 1 src/static/**/* build/",
-    "copy-views": "copyfiles -u 1 src/views/**/* build/views",
+    "copy-views": "copyfiles -u 1 src/views/**/* build/",
     "dev": "nodemon src/index.ts",
     "build": "pnpm clean && tsc && pnpm copy-files && pnpm copy-views",
     "start": "node build/index.js",
