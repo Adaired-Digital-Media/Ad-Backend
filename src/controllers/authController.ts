@@ -130,13 +130,12 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     // Fetch user with password and lean for speed
     const user = await User.findOne({ email }).select("+password").lean();
     if (!user) {
-      throw new CustomError(400, "User not found");
+      throw new CustomError(400, "User with this email does not exist.");
     }
-    console.log("User Found : ", user)
 
     // Verify password
     if (!user.password || !(await bcrypt.compare(password, user.password))) {
-      throw new CustomError(401, "Invalid credentials");
+      throw new CustomError(401, "Incorrect Password!");
     }
 
     // Generate tokens
