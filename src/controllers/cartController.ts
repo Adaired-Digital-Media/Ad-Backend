@@ -197,14 +197,6 @@ export const getUserCart = async (
         select: "name",
       },
     });
-    // const query = customerId ? { userId: customerId } : {};
-    // const cart = await Cart.findOne(query).populate({
-    //   path: "products.product",
-    //   populate: {
-    //     path: "subCategory",
-    //     select: "name",
-    //   },
-    // });
 
     if (!cart || (customerId && cart.userId.toString() !== customerId)) {
       return res.status(404).json({ message: "Cart not found for this user." });
@@ -222,65 +214,6 @@ export const getUserCart = async (
 // ***************************************
 // ********* Update Cart Product *********
 // ***************************************
-// export const updateCart = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const { userId } = req;
-//     const { cartItemId, ...updateFields } = req.body;
-
-//     if (!cartItemId) {
-//       return next(new CustomError(400, "Product entry ID is required."));
-//     }
-
-//     // Find the user's cart
-//     const cart = await Cart.findOne({ userId });
-//     if (!cart) {
-//       return next(new CustomError(404, "Cart not found."));
-//     }
-
-//     // Find the specific product entry by its unique ID
-//     const productIndex = cart.products.findIndex(
-//       (p) => p._id.toString() === cartItemId
-//     );
-//     if (productIndex === -1) {
-//       return next(new CustomError(404, "Product entry not found in cart."));
-//     }
-
-//     // Update the product fields
-//     const product = cart.products[productIndex];
-//     Object.keys(updateFields).forEach((key) => {
-//       if (key in product && updateFields[key] !== undefined) {
-//         (product as any)[key] = updateFields[key];
-//       }
-//     });
-
-//     // Recalculate total quantity and total price
-//     recalculateCartTotals(cart);
-
-//     // Save the updated cart
-//     await cart.save();
-
-//     // Populate the product field in the cart
-//     const populatedCart = await Cart.findById(cart._id).populate({
-//       path: "products.product",
-//     });
-
-//     if (!populatedCart) {
-//       return next(new CustomError(404, "Cart not found after population."));
-//     }
-
-//     res.status(200).json({
-//       message: "Cart updated successfully",
-//       cart: populatedCart,
-//     });
-//   } catch (error: any) {
-//     next(new CustomError(500, error.message));
-//   }
-// };
-
 export const updateCart = async (
   req: Request,
   res: Response,

@@ -47,13 +47,17 @@ const findRoles = async (req: Request, res: Response, next: NextFunction) => {
       throw new CustomError(403, "Permission denied");
 
     if (identifier) {
-      const role = await Role.findById(identifier).populate("users").lean();
+      const role = await Role.findById(identifier)
+        .populate("users", "_id name image")
+        .lean();
       res.status(200).json({
         message: "Role fetched successfully",
         data: role,
       });
     } else {
-      const roles = await Role.find().populate("users", "_id name image").lean();
+      const roles = await Role.find()
+        .populate("users", "_id name image")
+        .lean();
       res.status(200).json({
         message: "Roles fetched successfully",
         data: roles,
@@ -121,6 +125,7 @@ const updateRole = async (req: Request, res: Response, next: NextFunction) => {
 const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+
   try {
     const { userId } = req;
     const roleId = req.query.identifier as string;
@@ -129,26 +134,34 @@ const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
     if (!(await checkPermission(userId, "roles", 3)))
       throw new CustomError(403, "Permission denied");
 
-    const role = (await Role.findByIdAndDelete(roleId)).$session(session);
+    // Delete the role within the transaction
+    const role = await Role.findByIdAndDelete(roleId, { session });
     if (!role) {
-      await session.abortTransaction();
-      throw new CustomError(404, "Role not found");
+      await session.abortTransaction(); 
+      throw new CustomError(404, "Role not found"); 
     }
-    // After Deleting the role assign (user) role to user
+
+    // Update users who had this role
     await User.updateMany(
       { role: roleId },
       { $set: { role: null } },
-      { session: session }
+      { session }
     );
+
+    // Commit the transaction
     await session.commitTransaction();
+
+    // Convert to plain object to avoid circular references
+    const rolePlain = role.toObject();
 
     res.status(200).json({
       message: "Role deleted successfully",
-      data: role,
+      data: rolePlain,
     });
   } catch (error: any) {
+    // Only abort transaction here if it hasn’t been committed
     await session.abortTransaction();
-    next(new CustomError(500, error.message));
+    next(new CustomError(error.statusCode || 500, error.message || "Internal Server Error"));
   } finally {
     session.endSession();
   }

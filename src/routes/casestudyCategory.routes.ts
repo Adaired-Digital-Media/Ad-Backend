@@ -1,7 +1,7 @@
 import {
   validateCaseStudyCategory,
   validateCaseStudyUpdateCategory,
-} from "./../helpers/validator";
+} from "../helpers/validator";
 import {
   newCaseStudyCategory,
   readCaseStudyCategories,

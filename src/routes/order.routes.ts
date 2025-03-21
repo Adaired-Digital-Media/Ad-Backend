@@ -5,6 +5,7 @@ import {
   updateOrder,
   deleteOrder,
   getOrdersByUserId,
+  calculateCouponDiscount,
 } from "../controllers/orderController";
 import express, { Router } from "express";
 import verifyToken from "../middlewares/authMiddleware";
@@ -12,6 +13,7 @@ import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
 router.post("/create", verifyToken, createOrder);
+router.post("/calculate-coupon-discount", calculateCouponDiscount);
 router.post(
   "/stripe-webhook",
   express.raw({ type: "application/json" }),

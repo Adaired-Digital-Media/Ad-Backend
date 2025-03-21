@@ -8,9 +8,9 @@ export interface OrderTypes extends Document {
   products: CartProduct[];
   totalQuantity: number;
   totalPrice: number;
-  discountedPrice: number;
+  couponDiscount: number;
+  finalPrice: number;
   couponId?: Types.ObjectId | null;
-  couponDiscount?: number;
   paymentId: string;
   invoiceId: string;
   zohoInvoiceId: string;

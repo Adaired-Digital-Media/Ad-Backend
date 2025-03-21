@@ -72,6 +72,17 @@ export const validateRoleId = [
     .withMessage("Please enter a valid role ID"),
 ];
 
+export const validatePermissionModuleCreate = [
+  check("name", "Module name is required").notEmpty().isString().trim(),
+  check("value", "Module value is required").notEmpty().isString().trim(),
+  check("status").optional().isBoolean().default(true),
+];
+export const validatePermissionModuleUpdate = [
+  check("name").optional().isString().trim(),
+  check("value").optional().isString().trim(),
+  check("status").optional().isBoolean().default(true),
+];
+
 // *********** Blogs and Blog Categories **********
 
 export const validateBlog = [

@@ -6,20 +6,22 @@ import path from "path";
 import cors from "cors";
 
 // Routers Import
-import multerRoute from "./routes/multerRoute";
-import authRoute from "./routes/authRoute";
-import userRoute from "./routes/userRoute";
-import roleRoute from "./routes/roleRoute";
-import blogRoute from "./routes/blogRoute";
-import blogCategoryRoute from "./routes/blogCategoryRoute";
-import caseStudyRoute from "./routes/caseStudyRoute";
-import caseStudyCategoryRoute from "./routes/caseStudyCategoryRoute";
-import serviceRoute from "./routes/serviceRoute";
-import productRoute from "./routes/productRoute";
-import productFormRoute from "./routes/productFormRoute";
-import productCategoryRoute from "./routes/productCategoryRoute";
-import cartRoute from "./routes/cartRoute";
-import orderRoute from "./routes/orderRoute";
+import multerRoute from "./routes/multer.routes";
+import authRoute from "./routes/auth.routes";
+import userRoute from "./routes/user.routes";
+import roleRoute from "./routes/role.routes";
+import permissionModuleRoute from "./routes/permissionModule.routes";
+import blogRoute from "./routes/blog.routes";
+import blogCategoryRoute from "./routes/blogCategory.routes";
+import caseStudyRoute from "./routes/casestudy.routes";
+import caseStudyCategoryRoute from "./routes/casestudyCategory.routes";
+import serviceRoute from "./routes/service.routes";
+import productRoute from "./routes/product.routes";
+import productFormRoute from "./routes/productForm.routes";
+import productCategoryRoute from "./routes/productCategory.routes";
+import cartRoute from "./routes/cart.routes";
+import orderRoute from "./routes/order.routes";
+import couponRoute from "./routes/coupon.routes";
 
 const app: Application = express();
 const PORT = process.env.PORT || 8080;
@@ -72,6 +74,7 @@ app.use(`${basePath}/multer`, multerRoute);
 app.use(`${basePath}/auth`, authRoute);
 app.use(`${basePath}/user`, userRoute);
 app.use(`${basePath}/role`, roleRoute);
+app.use(`${basePath}/permissionModule`, permissionModuleRoute);
 app.use(`${basePath}/blog`, blogRoute);
 app.use(`${basePath}/blog/category`, blogCategoryRoute);
 app.use(`${basePath}/case-study`, caseStudyRoute);
@@ -82,6 +85,7 @@ app.use(`${basePath}/product/form`, productFormRoute);
 app.use(`${basePath}/product/category`, productCategoryRoute);
 app.use(`${basePath}/cart`, cartRoute);
 app.use(`${basePath}/orders`, orderRoute);
+app.use(`${basePath}/coupons`, couponRoute);
 
 // Static files and View Engine
 app.use("/static", express.static(path.join(__dirname + "static")));

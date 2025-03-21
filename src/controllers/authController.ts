@@ -32,7 +32,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       password,
       role,
       contact,
-      userStatus,
+      status,
       googleId,
     } = req.body;
 
@@ -63,7 +63,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       ...(role && { role }),
       ...(hashedPassword && { password: hashedPassword }),
       ...(contact && { contact }),
-      ...(userStatus && { userStatus }),
+      ...(status && { status }),
       ...(googleId && { googleId }),
     });
 
@@ -297,6 +297,11 @@ const resetPassword = async (
         !(await bcrypt.compare(currentPassword, user.password))
       ) {
         throw new CustomError(400, "Current password is incorrect");
+      }
+
+      // Check if newPassword is the same as currentPassword
+      if (await bcrypt.compare(newPassword, user.password)) {
+        throw new CustomError(400, "New password cannot be the same as the current password");
       }
     } else if (resetToken) {
       // Reset via token
