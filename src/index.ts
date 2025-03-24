@@ -113,14 +113,6 @@ const startServer = async () => {
     await connectDB();
     // Start cron job after DB is ready
     emptyCartJob.start();
-    // Run once immediately with error handling
-    try {
-      await runEmptyExpiredCartsNow();
-      console.log("Initial cart emptying completed");
-    } catch (error) {
-      console.error("Initial cart emptying failed:", error);
-      // Optional: Retry logic here
-    }
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
