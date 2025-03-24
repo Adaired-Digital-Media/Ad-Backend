@@ -22,6 +22,8 @@ import productCategoryRoute from "./routes/productCategory.routes";
 import cartRoute from "./routes/cart.routes";
 import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
+import { emptyCartJob, runEmptyExpiredCartsNow } from "./cron-jobs/empty-cart";
+import mongoose from "mongoose";
 
 const app: Application = express();
 const PORT = process.env.PORT || 8080;
@@ -70,6 +72,11 @@ app.use(cors(corsOptions));
 
 const basePath = "/api/v2";
 
+// Ping Endpoint (minimal response)
+app.get(`${basePath}/ping`, (req: Request, res: Response) => {
+  res.status(200).send("pong");
+});
+
 app.use(`${basePath}/multer`, multerRoute);
 app.use(`${basePath}/auth`, authRoute);
 app.use(`${basePath}/user`, userRoute);
@@ -104,6 +111,16 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+    // Start cron job after DB is ready
+    emptyCartJob.start();
+    // Run once immediately with error handling
+    try {
+      await runEmptyExpiredCartsNow();
+      console.log("Initial cart emptying completed");
+    } catch (error) {
+      console.error("Initial cart emptying failed:", error);
+      // Optional: Retry logic here
+    }
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
@@ -114,3 +131,11 @@ const startServer = async () => {
 };
 
 startServer();
+
+process.on("SIGINT", async () => {
+  emptyCartJob.stop();
+  console.log("Empty cart cron job stopped");
+  await mongoose.connection.close();
+  console.log("MongoDB connection closed");
+  process.exit(0);
+});
