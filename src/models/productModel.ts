@@ -48,7 +48,6 @@ const ProductSchema = new Schema<ProductTypes>(
   { timestamps: true }
 );
 
-ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ category: 1 });
 
 const Product = mongoose.model<ProductTypes>("Product", ProductSchema);

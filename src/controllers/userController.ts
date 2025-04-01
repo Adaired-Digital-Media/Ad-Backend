@@ -242,4 +242,28 @@ const killUser = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { findUser, updateUser, killUser };
+// ***************************************
+// ********* Get Current User ************
+// ***************************************
+const getCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req;
+    const user = await User.findById(userId)
+      .populate("role", "name permissions")
+      .lean();
+
+    if (!user) {
+      throw new CustomError(404, "User not found");
+    }
+
+    res.status(200).json({ data: user });
+  } catch (error) {
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError(500, "Failed to fetch user")
+    );
+  }
+};
+
+export { findUser, updateUser, killUser, getCurrentUser };

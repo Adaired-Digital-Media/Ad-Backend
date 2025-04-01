@@ -6,121 +6,121 @@ import { CustomError } from "../middlewares/error";
 import checkPermission from "../helpers/authHelper";
 import axios from "axios";
 import { BASE_DOMAIN } from "../utils/globals";
-import Coupon from "../models/coupon.model";
-import { Types } from "mongoose";
+import { applyCoupon } from "./coupon.controller";
+import {
+  sendAdminNewOrderEmail,
+  sendAdminPaymentReceivedEmail,
+  sendOrderConfirmationEmail,
+  sendPaymentConfirmationEmail,
+} from "../utils/mailer";
+import { OrderStatsResponse, RawChartDataItem } from "../types/orderTypes";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-11-20.acacia",
 });
 
-// Helper function to calculate discount.
-const calculateDiscount = (
-  coupon: any,
-  cartData: { products: any[]; totalPrice: number; totalQuantity: number }
-) => {
-  let discount = 0;
-  let discountedTotal = cartData.totalPrice;
-
-  switch (coupon.discountType) {
-    case "PERCENTAGE":
-      if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
-        throw new CustomError(400, "Minimum order amount not met");
-      }
-      discount = (cartData.totalPrice * coupon.discountValue) / 100;
-      discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
-      discountedTotal = cartData.totalPrice - discount;
-      break;
-
-    case "FLAT":
-      if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
-        throw new CustomError(400, "Minimum order amount not met");
-      }
-      discount = coupon.discountValue;
-      discountedTotal = Math.max(0, cartData.totalPrice - discount);
-      break;
-
-    case "PRODUCT_SPECIFIC":
-      const specificProduct = cartData.products.find(
-        (p) => p.product._id.toString() === coupon.specificProduct?.toString()
-      );
-      if (!specificProduct) {
-        throw new CustomError(400, "Specific product not found in cart");
-      }
-      discount = specificProduct.totalPrice * (coupon.discountValue / 100);
-      discountedTotal = cartData.totalPrice - discount;
-      break;
-
-    case "QUANTITY_BASED":
-      const hasEnoughQuantity = cartData.products.some(
-        (p) => p.quantity >= (coupon.minQuantity || 1)
-      );
-      if (!hasEnoughQuantity) {
-        throw new CustomError(400, "Minimum quantity requirement not met");
-      }
-      discount = (cartData.totalPrice * coupon.discountValue) / 100;
-      discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
-      discountedTotal = cartData.totalPrice - discount;
-      break;
-
-    default:
-      throw new CustomError(400, "Invalid discount type");
+// Get currency based on IP
+const getCurrencyFromRegion = async (ip: string): Promise<string> => {
+  try {
+    const response = await axios.get(`https://ipinfo.io/${ip}/json`);
+    return response.data.country === "IN" ? "inr" : "usd";
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error detecting region:", error);
+      throw new CustomError(500, error.message);
+    }
+    return "usd";
   }
-  return { discount, discountedTotal };
 };
 
-// *********************************************************
-// ************ Calculate Coupon Discount (Preview) ********
-// *********************************************************
-export const calculateCouponDiscount = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+// Fetch exchange rate
+const getExchangeRate = async (currency: string): Promise<number> => {
+  if (currency === "usd") return 1;
   try {
-    const { code, localCart } = req.body;
-
-    if (!localCart || !localCart.products || localCart.products.length === 0) {
-      return next(new CustomError(400, "Cart cannot be empty"));
-    }
-
-    const cartData = localCart;
-
-    if (!code) {
-      return res.status(200).json({
-        message: "No coupon applied",
-        originalTotal: cartData.totalPrice,
-        couponDiscount: 0,
-        finalPrice: cartData.totalPrice,
-      });
-    }
-
-    const coupon = await Coupon.findOne({
-      code: code,
-      isActive: true,
-      $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
-    });
-
-    if (!coupon) {
-      return next(new CustomError(404, "Invalid or expired coupon"));
-    }
-
-    const { discount, discountedTotal } = calculateDiscount(coupon, cartData);
-
-    res.status(200).json({
-      message: "Coupon discount calculated successfully",
-      originalTotal: cartData.totalPrice,
-      couponDiscount: discount,
-      finalPrice: discountedTotal,
-    });
-  } catch (error) {
-    next(
-      new CustomError(
-        500,
-        error instanceof Error ? error.message : "An error occurred"
-      )
+    const response = await axios.get(
+      "https://api.exchangerate-api.com/v4/latest/USD"
     );
+    return response.data.rates[currency.toUpperCase()] || 84;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error detecting currency:", error);
+      throw new CustomError(500, error.message);
+    }
+    return 84; // Fallback rate
   }
+};
+
+// Helper to create Stripe session (in local currency)
+const createStripeSession = async (
+  cart: any,
+  orderNumber: string,
+  currency: string,
+  exchangeRate: number,
+  coupon: any,
+  discountUSD: number,
+  userId: string
+): Promise<Stripe.Checkout.Session> => {
+  const discountLocal = discountUSD * exchangeRate;
+
+  return stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: cart.products.map((item: any) => {
+      const product = item.product;
+      const unitAmountUSD =
+        item.wordCount && item.wordCount > 0
+          ? (item.wordCount / 100) * product.pricePerUnit
+          : product.pricePerUnit;
+      const unitAmountLocal = unitAmountUSD * exchangeRate;
+
+      let adjustedUnitAmount = unitAmountLocal;
+      if (
+        coupon &&
+        coupon.discountType === "PRODUCT_SPECIFIC" &&
+        coupon.specificProduct?.toString() === product._id.toString()
+      ) {
+        adjustedUnitAmount = unitAmountLocal * (1 - coupon.discountValue / 100);
+      }
+
+      return {
+        price_data: {
+          currency,
+          product_data: { name: product.name },
+          unit_amount: Math.round(adjustedUnitAmount * 100), // Local currency cents/paise
+        },
+        quantity: item.quantity,
+      };
+    }),
+    ...(discountLocal > 0 && coupon?.discountType !== "PRODUCT_SPECIFIC"
+      ? {
+          discounts: [
+            {
+              coupon: await stripe.coupons
+                .create({
+                  amount_off: Math.round(discountLocal * 100),
+                  currency,
+                  duration: "once",
+                })
+                .then((c) => c.id),
+            },
+          ],
+        }
+      : {}),
+    mode: "payment",
+    success_url: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+    cancel_url: `${BASE_DOMAIN}/expert-content-solutions`,
+    metadata: { userId, couponId: coupon?._id?.toString() || "" },
+  });
+};
+
+// Helper to generate order number
+const generateOrderNumber = (): string => {
+  const now = new Date();
+  return `${String(now.getDate()).padStart(2, "0")}${String(
+    now.getMonth() + 1
+  ).padStart(2, "0")}${String(now.getFullYear()).slice(-2)}${String(
+    now.getHours()
+  ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 };
 
 // *********************************************************
@@ -136,7 +136,9 @@ export const createOrder = async (
     const { couponCode, paymentMethod, ip } = req.body;
 
     if (!userId) {
-      return next(new CustomError(401, "User must be logged in to create an order"));
+      return next(
+        new CustomError(401, "User must be logged in to create an order")
+      );
     }
 
     const cart = await Cart.findOne({ userId }).populate("products.product");
@@ -144,123 +146,49 @@ export const createOrder = async (
       return res.status(400).json({ message: "Cart is empty." });
     }
 
-    // Get currency based on IP
-    const getCurrencyFromRegion = async (ip: string): Promise<string> => {
-      try {
-        const response = await axios.get(`https://ipinfo.io/${ip}/json`);
-        return response.data.country === "IN" ? "inr" : "usd";
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error detecting region:", error);
-          throw new CustomError(500, error.message);
-        }
-        return "usd";
-      }
-    };
-
     const currency = await getCurrencyFromRegion(ip);
+    const exchangeRate = await getExchangeRate(currency);
+    const totalPriceUSD = cart.totalPrice;
 
-    // Fetch exchange rate
-    const getExchangeRate = async (): Promise<number> => {
-      if (currency === "usd") return 1;
-      try {
-        const response = await axios.get("https://api.exchangerate-api.com/v4/latest/USD");
-        return response.data.rates.INR;
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error detecting currency:", error);
-          throw new CustomError(500, error.message);
-        }
-        return 80; // Fallback rate
-      }
+    // Apply coupon and calculate totals in USD
+    const { coupon, discountUSD, finalPriceUSD } = await applyCoupon(
+      couponCode,
+      cart,
+      userId
+    );
+    const orderNumber = generateOrderNumber();
+
+    // Create order object (in USD)
+    const orderData = {
+      orderNumber,
+      userId,
+      products: cart.products,
+      totalQuantity: cart.totalQuantity,
+      totalPrice: totalPriceUSD,
+      couponDiscount: discountUSD,
+      finalPrice: finalPriceUSD,
+      couponId: coupon?._id || null,
+      invoiceId: "Invoice_" + Date.now(),
+      paymentMethod,
     };
 
-    const exchangeRate = await getExchangeRate();
-
-    // Convert cart total to target currency (INR or USD)
-    let totalPrice = cart.totalPrice * (currency === "inr" ? exchangeRate : 1);
-    let couponDiscount = 0;
-    let coupon: any = null;
-
-    console.log("Received couponCode:", couponCode);
-
-    // Apply coupon logic
-    if (couponCode) {
-      coupon = await Coupon.findOne({
-        code: couponCode,
-        isActive: true,
-        $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
-      });
-
-      if (!coupon) {
-        return next(new CustomError(404, "Invalid or expired coupon"));
-      }
-
-      const userUsage = coupon.userUsage?.find((u: any) => u.userId.toString() === userId);
-      if (userUsage && userUsage.usageCount >= coupon.usageLimitPerUser) {
-        return next(new CustomError(400, "Coupon usage limit reached for this user"));
-      }
-      if (coupon.usedCount >= coupon.totalUsageLimit) {
-        return next(new CustomError(400, "Coupon total usage limit reached"));
-      }
-
-      // Recalculate discount in the target currency
-      const cartDataInTargetCurrency = {
-        products: cart.products.map((item: any) => ({
-          ...item,
-          totalPrice: item.totalPrice * (currency === "inr" ? exchangeRate : 1),
-          product: {
-            ...item.product,
-            pricePerUnit: item.product.pricePerUnit * (currency === "inr" ? exchangeRate : 1),
-          },
-        })),
-        totalPrice,
-        totalQuantity: cart.totalQuantity,
-      };
-
-      const { discount, discountedTotal } = calculateDiscount(coupon, cartDataInTargetCurrency);
-      couponDiscount = discount;
-      totalPrice = discountedTotal;
-
-      if (userUsage) {
-        userUsage.usageCount += 1;
-      } else {
-        coupon.userUsage?.push({ userId: new Types.ObjectId(userId), usageCount: 1 });
-      }
-      coupon.usedCount += 1;
-      await coupon.save();
-    }
-
-    const finalPrice = totalPrice;
-
-    // Generate order number
-    const now = new Date();
-    const orderNumber = `${String(now.getDate()).padStart(2, "0")}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getFullYear()).slice(-2)}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-
-    if (finalPrice === 0) {
+    // Handle free order (finalPriceUSD = 0)
+    if (finalPriceUSD === 0) {
       const newOrder = new Order({
-        orderNumber,
-        userId,
-        products: cart.products,
-        totalQuantity: cart.totalQuantity,
-        totalPrice: cart.totalPrice * (currency === "inr" ? exchangeRate : 1),
-        couponDiscount,
-        finalPrice,
-        couponId: coupon?._id || null,
+        ...orderData,
         paymentId: null,
-        invoiceId: "Invoice_" + Date.now(),
         paymentUrl: null,
-        status: "Confirmed",
         paymentStatus: "Paid",
-        paymentMethod,
       });
 
       await newOrder.save();
+      await cart.updateOne({ products: [], totalPrice: 0, totalQuantity: 0 });
 
-      cart.products = [];
-      cart.totalPrice = 0;
-      cart.totalQuantity = 0;
-      await cart.save();
+      // Send emails asynchronously
+      Promise.all([
+        sendOrderConfirmationEmail(newOrder._id.toString()),
+        sendAdminNewOrderEmail(newOrder._id.toString()),
+      ]).catch((err) => console.error("Email sending failed:", err));
 
       return res.status(200).json({
         message: "Order created successfully",
@@ -269,76 +197,33 @@ export const createOrder = async (
       });
     }
 
-    // Stripe session creation
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: cart.products.map((item) => {
-        const product = item.product;
-        const unitAmount =
-          (item.wordCount && item.wordCount > 0
-            ? (item.wordCount / 100) * product.pricePerUnit
-            : product.pricePerUnit) * (currency === "inr" ? exchangeRate : 1);
-
-        let adjustedUnitAmount = unitAmount;
-        if (
-          coupon &&
-          coupon.discountType === "PRODUCT_SPECIFIC" &&
-          coupon.specificProduct?.toString() === product._id.toString()
-        ) {
-          adjustedUnitAmount = unitAmount * (1 - coupon.discountValue / 100);
-        }
-
-        return {
-          price_data: {
-            currency: currency,
-            product_data: { name: product.name },
-            unit_amount: Math.round(adjustedUnitAmount * 100),
-          },
-          quantity: item.quantity,
-        };
-      }),
-      ...(couponDiscount > 0 && coupon?.discountType !== "PRODUCT_SPECIFIC"
-        ? {
-            discounts: [
-              {
-                coupon: await stripe.coupons.create({
-                  amount_off: Math.round(couponDiscount * 100),
-                  currency: currency,
-                  duration: "once",
-                }).then((c) => c.id),
-              },
-            ],
-          }
-        : {}),
-      mode: "payment",
-      success_url: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
-      cancel_url: `${BASE_DOMAIN}/expert-content-solutions`,
-      metadata: { userId, couponId: couponCode || "" },
-    });
+    // Create Stripe session (in local currency)
+    const session = await createStripeSession(
+      cart,
+      orderNumber,
+      currency,
+      exchangeRate,
+      coupon,
+      discountUSD,
+      userId
+    );
 
     const newOrder = new Order({
-      orderNumber,
-      userId,
-      products: cart.products,
-      totalQuantity: cart.totalQuantity,
-      totalPrice: cart.totalPrice * (currency === "inr" ? exchangeRate : 1),
-      couponDiscount,
-      finalPrice,
-      couponId: coupon?._id || null,
+      ...orderData,
       paymentId: session.id,
-      invoiceId: "Invoice_" + Date.now(),
       paymentUrl: session.url,
       status: "Pending",
       paymentStatus: "Unpaid",
-      paymentMethod,
     });
 
     await newOrder.save();
+    await cart.updateOne({ products: [], totalPrice: 0, totalQuantity: 0 });
 
-    cart.products = [];
-    cart.totalPrice = 0;
-    cart.totalQuantity = 0;
-    await cart.save();
+    // Send emails asynchronously
+    Promise.all([
+      sendOrderConfirmationEmail(newOrder._id.toString()),
+      sendAdminNewOrderEmail(newOrder._id.toString()),
+    ]).catch((err) => console.error("Email sending failed:", err));
 
     res.status(201).json({
       message: "Order created successfully.",
@@ -354,254 +239,9 @@ export const createOrder = async (
   }
 };
 
-// export const createOrder = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const { userId } = req;
-//     const { couponCode, paymentMethod, ip } = req.body;
-
-//     if (!userId) {
-//       return next(
-//         new CustomError(401, "User must be logged in to create an order")
-//       );
-//     }
-
-//     const cart = await Cart.findOne({ userId }).populate("products.product");
-//     if (!cart || cart.products.length === 0) {
-//       return res.status(400).json({ message: "Cart is empty." });
-//     }
-
-//     let totalPrice = cart.totalPrice;
-//     let couponDiscount = 0;
-//     let coupon: any = null;
-    
-
-//     console.log("Received couponId:", couponCode); // Debug log
-
-//     // Apply coupon logic here
-//     if (couponCode) {
-//       coupon = await Coupon.findOne({
-//         code: couponCode,
-//         isActive: true,
-//         $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
-//       });
-//       console.log("Coupon Code : ", coupon)
-
-//       if (!coupon) {
-//         return next(new CustomError(404, "Invalid or expired coupon"));
-//       }
-
-//       const userUsage = coupon.userUsage?.find(
-//         (u: any) => u.userId.toString() === userId
-//       );
-//       if (userUsage && userUsage.usageCount >= coupon.usageLimitPerUser) {
-//         return next(
-//           new CustomError(400, "Coupon usage limit reached for this user")
-//         );
-//       }
-//       if (coupon.usedCount >= coupon.totalUsageLimit) {
-//         return next(new CustomError(400, "Coupon total usage limit reached"));
-//       }
-
-//       const { discount, discountedTotal } = calculateDiscount(coupon, cart);
-//       couponDiscount = discount;
-
-//       if (userUsage) {
-//         userUsage.usageCount += 1;
-//       } else {
-//         coupon.userUsage?.push({
-//           userId: new Types.ObjectId(userId),
-//           usageCount: 1,
-//         });
-//       }
-//       coupon.usedCount += 1;
-//       await coupon.save();
-//       totalPrice = discountedTotal;
-//     }
-
-//     const finalPrice = totalPrice;
-
-//     // Generate order number based on current date and time
-//     const now = new Date();
-//     const orderNumber = `${String(now.getDate()).padStart(2, "0")}${String(
-//       now.getMonth() + 1
-//     ).padStart(2, "0")}${String(now.getFullYear()).slice(-2)}${String(
-//       now.getHours()
-//     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-
-//     if (finalPrice === 0) {
-//       // Directly create the order for free transactions
-//       const newOrder = new Order({
-//         orderNumber,
-//         userId,
-//         products: cart.products,
-//         totalQuantity: cart.totalQuantity,
-//         totalPrice: cart.totalPrice,
-//         couponDiscount,
-//         finalPrice,
-//         // couponId: couponId || null,
-//         couponId: null,
-//         paymentId: null,
-//         invoiceId: "Invoice_" + Date.now(),
-//         paymentUrl: null,
-//         status: "Confirmed",
-//         paymentStatus: "Paid", // For free orders, mark as paid
-//         paymentMethod,
-//       });
-
-//       await newOrder.save();
-
-//       // Empty the cart after successful order creation
-//       cart.products = [];
-//       cart.totalPrice = 0;
-//       cart.totalQuantity = 0;
-//       await cart.save();
-
-//       // Redirect to the success page
-//       return res.status(200).json({
-//         message: "Order created successfully",
-//         data: newOrder,
-//         redirectUrl: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
-//       });
-//     }
-
-//     // Get currency based on IP
-//     const getCurrencyFromRegion = async (ip: string): Promise<string> => {
-//       try {
-//         const response = await axios.get(`https://ipinfo.io/${ip}/json`);
-//         return response.data.country === "IN" ? "inr" : "usd";
-//       } catch (error) {
-//         if (error instanceof Error) {
-//           console.error("Error detecting region:", error);
-//           throw new CustomError(500, error.message);
-//         }
-//         return "usd";
-//       }
-//     };
-
-//     const currency = await getCurrencyFromRegion(ip);
-
-//     // Fetch exchange rate
-//     const getExchangeRate = async (): Promise<number> => {
-//       if (currency === "usd") return 1;
-//       try {
-//         const response = await axios.get(
-//           "https://api.exchangerate-api.com/v4/latest/USD"
-//         );
-//         return response.data.rates.INR;
-//       } catch (error) {
-//         if (error instanceof Error) {
-//           console.error("Error detecting currency:", error);
-//           throw new CustomError(500, error.message);
-//         }
-//         return 80; // Fallback rate
-//       }
-//     };
-
-//     const exchangeRate = await getExchangeRate();
-
-//     // Stripe session creation for paid transactions
-//     const session = await stripe.checkout.sessions.create({
-//       payment_method_types: ["card"],
-//       line_items: cart.products.map((item) => {
-//         const product = item.product; // Access the nested product object
-//         const unitAmount =
-//           (item.wordCount && item.wordCount > 0
-//             ? (item.wordCount / 100) * product.pricePerUnit
-//             : product.pricePerUnit) * (currency === "inr" ? exchangeRate : 1);
-
-//         // Adjust unit amount based on coupon if PRODUCT_SPECIFIC
-//         let adjustedUnitAmount = unitAmount;
-//         if (
-//           coupon &&
-//           coupon.discountType === "PRODUCT_SPECIFIC" &&
-//           coupon.specificProduct?.toString() === product._id.toString()
-//         ) {
-//           adjustedUnitAmount = unitAmount * (1 - coupon.discountValue / 100);
-//         }
-
-//         return {
-//           price_data: {
-//             currency: currency,
-//             product_data: {
-//               name: product.name,
-//             },
-//             unit_amount: Math.round(adjustedUnitAmount * 100),
-//           },
-//           quantity: item.quantity,
-//         };
-//       }),
-//       ...(couponDiscount > 0 && coupon?.discountType !== "PRODUCT_SPECIFIC"
-//         ? {
-//             discounts: [
-//               {
-//                 coupon: await stripe.coupons
-//                   .create({
-//                     amount_off: Math.round(couponDiscount * 100),
-//                     currency: currency,
-//                     duration: "once",
-//                   })
-//                   .then((c) => c.id),
-//               },
-//             ],
-//           }
-//         : {}),
-//       mode: "payment",
-//       success_url: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
-//       cancel_url: `${BASE_DOMAIN}/expert-content-solutions`,
-//       // metadata: { userId, couponId: couponId || "" },
-//       metadata: { userId, couponId: "" },
-//     });
-
-//     const newOrder = new Order({
-//       orderNumber: orderNumber,
-//       userId,
-//       products: cart.products,
-//       totalQuantity: cart.totalQuantity,
-//       totalPrice,
-//       couponDiscount,
-//       finalPrice,
-//       // couponId: couponId || null,
-//       couponId: null,
-//       paymentId: session.id,
-//       invoiceId: "Invoice_" + Date.now(),
-//       paymentUrl: session.url,
-//       status: "Pending",
-//       paymentStatus: "Unpaid",
-//       paymentMethod,
-//     });
-
-//     await newOrder.save();
-
-//     // Empty the cart after successful order creation
-//     cart.products = [];
-//     cart.totalPrice = 0;
-//     cart.totalQuantity = 0;
-//     await cart.save();
-
-//     res.status(201).json({
-//       message: "Order created successfully.",
-//       data: newOrder,
-//       sessionId: session.id,
-//     });
-//   } catch (error) {
-//     if (error instanceof Error) {
-//       next(new CustomError(500, error.message));
-//     } else {
-//       next(new CustomError(500, "An unknown error occurred."));
-//     }
-//   }
-// };
-
-
-
 // *********************************************************
 // ************** Handle Stripe Webhook Events *************
 // *********************************************************
-
 export const stripeWebhook = async (req: Request, res: Response) => {
   const sig = req.headers["stripe-signature"]!;
   if (!sig) {
@@ -629,15 +269,21 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const session = event.data.object as Stripe.Checkout.Session;
 
       if (session.payment_status === "paid") {
-        await Order.findOneAndUpdate(
+        const updatedOrder = await Order.findOneAndUpdate(
           { paymentId: session.id },
           {
-            status: "Confirmed",
             paymentStatus: "Paid",
             paymentDate: Date.now(),
           },
           { new: true }
         );
+        if (updatedOrder) {
+          // Send emails asynchronously
+          Promise.all([
+            sendPaymentConfirmationEmail(updatedOrder._id.toString()),
+            sendAdminPaymentReceivedEmail(updatedOrder._id.toString()),
+          ]).catch((err) => console.error("Email sending failed:", err));
+        }
       }
       break;
 
@@ -645,7 +291,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const expiredSession = event.data.object as Stripe.Checkout.Session;
       await Order.findOneAndUpdate(
         { paymentId: expiredSession.id },
-        { status: "Cancelled", paymentStatus: "Unpaid" },
+        { paymentStatus: "Unpaid" },
         { new: true }
       );
 
@@ -818,6 +464,377 @@ export const deleteOrder = async (
     }
 
     res.status(200).json({ message: "Order deleted successfully." });
+  } catch (error) {
+    if (error instanceof Error) {
+      next(new CustomError(500, error.message));
+    } else {
+      next(new CustomError(500, "An unknown error occurred."));
+    }
+  }
+};
+
+// *********************************************************
+// ************ Retrieve Order Statistics for Dashboard ****
+// *********************************************************
+export const getOrderStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "orders", 2);
+    if (!permissionCheck) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    // Define date ranges in UTC for consistency
+    const now = new Date();
+    const currentMonthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    );
+    const prevMonthEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0)
+    );
+    const prevMonthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)
+    );
+    const todayStart = new Date(now);
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setUTCHours(23, 59, 59, 999);
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 6); // 6 days back from today
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+
+    // Aggregate all metrics
+    const [stats] = await Order.aggregate([
+      {
+        $facet: {
+          currentMonthOrders: [
+            { $match: { createdAt: { $gte: currentMonthStart, $lte: now } } },
+            { $group: { _id: null, newOrders: { $sum: 1 } } },
+          ],
+          previousMonthOrders: [
+            {
+              $match: {
+                createdAt: { $gte: prevMonthStart, $lte: prevMonthEnd },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                newOrders: { $sum: 1 },
+                sales: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$totalPrice",
+                      0,
+                    ],
+                  },
+                },
+                revenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$finalPrice",
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          allTimeMetrics: [
+            {
+              $group: {
+                _id: null,
+                sales: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$totalPrice",
+                      0,
+                    ],
+                  },
+                },
+                revenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$finalPrice",
+                      0,
+                    ],
+                  },
+                },
+                allOrders: { $sum: 1 },
+                paidOrders: {
+                  $sum: { $cond: [{ $eq: ["$paymentStatus", "Paid"] }, 1, 0] },
+                },
+                completedOrders: {
+                  $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] },
+                },
+              },
+            },
+          ],
+          dailyOrders: [
+            { $match: { createdAt: { $gte: todayStart, $lte: todayEnd } } },
+            { $group: { _id: null, count: { $sum: 1 } } },
+          ],
+          chartData: [
+            { $match: { createdAt: { $gte: sevenDaysAgo, $lte: todayEnd } } },
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                }, // Group by date
+                newOrders: { $sum: 1 },
+                sales: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$totalPrice",
+                      0,
+                    ],
+                  },
+                },
+                revenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$paymentStatus", "Paid"] },
+                      "$finalPrice",
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                date: "$_id",
+                newOrders: 1,
+                sales: 1,
+                revenue: 1,
+                _id: 0,
+              },
+            },
+            { $sort: { date: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    // Extract values with defaults
+    const currentMonthNewOrders = stats.currentMonthOrders[0]?.newOrders || 0;
+    const prevMonthNewOrders = stats.previousMonthOrders[0]?.newOrders || 0;
+    const prevMonthSales = stats.previousMonthOrders[0]?.sales || 0;
+    const prevMonthRevenue = stats.previousMonthOrders[0]?.revenue || 0;
+    const allTimeSales = stats.allTimeMetrics[0]?.sales || 0;
+    const allTimeRevenue = stats.allTimeMetrics[0]?.revenue || 0;
+    const allOrders = stats.allTimeMetrics[0]?.allOrders || 0;
+    const paidOrders = stats.allTimeMetrics[0]?.paidOrders || 0;
+    const completedOrders = stats.allTimeMetrics[0]?.completedOrders || 0;
+    const dailyOrders = stats.dailyOrders[0]?.count || 0;
+
+    // Calculate percentage changes
+    const newOrdersChange =
+      prevMonthNewOrders === 0
+        ? currentMonthNewOrders > 0
+          ? 100
+          : 0
+        : ((currentMonthNewOrders - prevMonthNewOrders) / prevMonthNewOrders) *
+          100;
+    const salesChange =
+      prevMonthSales === 0
+        ? allTimeSales > 0
+          ? 100
+          : 0
+        : ((allTimeSales - prevMonthSales) / prevMonthSales) * 100;
+    const revenueChange =
+      prevMonthRevenue === 0
+        ? allTimeRevenue > 0
+          ? 100
+          : 0
+        : ((allTimeRevenue - prevMonthRevenue) / prevMonthRevenue) * 100;
+
+    // Weekday map
+    const weekdayMap = {
+      "1": "Sun",
+      "2": "Mon",
+      "3": "Tue",
+      "4": "Wed",
+      "5": "Thu",
+      "6": "Fri",
+      "7": "Sat",
+    };
+
+    // Generate full 7-day range (March 25 to March 31)
+    const fullWeek = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(sevenDaysAgo);
+      date.setDate(sevenDaysAgo.getDate() + i);
+      const dayNumber = String(date.getDay() + 1); // MongoDB dayOfWeek format
+      return {
+        date: date.toISOString().split("T")[0],
+        dayNumber,
+        newOrders: 0,
+        sales: 0,
+        revenue: 0,
+      };
+    });
+
+    // Merge aggregation data into fullWeek
+    stats.chartData.forEach((item: any) => {
+      const index = fullWeek.findIndex((d) => d.date === item.date);
+      if (index !== -1) {
+        fullWeek[index].newOrders = item.newOrders || 0;
+        fullWeek[index].sales = item.sales || 0;
+        fullWeek[index].revenue = item.revenue || 0;
+      }
+    });
+
+    // Format the response
+    const response = {
+      newOrders: {
+        count: currentMonthNewOrders,
+        percentageChange: Number(newOrdersChange.toFixed(2)),
+        trend:
+          newOrdersChange > 0
+            ? "increased"
+            : newOrdersChange < 0
+            ? "decreased"
+            : "unchanged",
+      },
+      sales: {
+        total: allTimeSales,
+        percentageChange: Number(salesChange.toFixed(2)),
+        trend:
+          salesChange > 0
+            ? "increased"
+            : salesChange < 0
+            ? "decreased"
+            : "unchanged",
+      },
+      revenue: {
+        total: allTimeRevenue,
+        percentageChange: Number(revenueChange.toFixed(2)),
+        trend:
+          revenueChange > 0
+            ? "increased"
+            : revenueChange < 0
+            ? "decreased"
+            : "unchanged",
+      },
+      allOrders,
+      paidOrders,
+      dailyOrders,
+      completedOrders,
+      chartData: {
+        newOrders: fullWeek.map((item) => ({
+          day: weekdayMap[item.dayNumber as keyof typeof weekdayMap],
+          orders: item.newOrders,
+          date: item.date,
+        })),
+        sales: fullWeek.map((item) => ({
+          day: weekdayMap[item.dayNumber as keyof typeof weekdayMap],
+          sale: item.sales,
+          date: item.date,
+        })),
+        revenue: fullWeek.map((item) => ({
+          day: weekdayMap[item.dayNumber as keyof typeof weekdayMap],
+          revenue: item.revenue,
+          date: item.date,
+        })),
+      },
+    };
+
+    return res.status(200).json(response);
+  } catch (error) {
+    if (error instanceof Error) {
+      next(new CustomError(500, error.message));
+    } else {
+      next(new CustomError(500, "An unknown error occurred"));
+    }
+  }
+};
+
+// *********************************************************
+// ************ Retrieve Sales Report for a Specific Year ****
+// *********************************************************
+export const getSalesReport = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+    const { year } = req.query;
+
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "orders", 2);
+    if (!permissionCheck) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    // Default to current year if not provided
+    const selectedYear = year
+      ? parseInt(year as string)
+      : new Date().getFullYear();
+
+    // Define the date range for the selected year
+    const startDate = new Date(selectedYear, 0, 1); // Jan 1st
+    const endDate = new Date(selectedYear, 11, 31, 23, 59, 59, 999); // Dec 31st
+
+    // Fetch orders for the selected year
+    const orders = await Order.find({
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+      paymentStatus: "Paid",
+    }).lean();
+
+    // Aggregate data by month
+    const monthlyData: Record<string, { sales: number; revenue: number }> = {};
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    // Initialize all months with 0 values
+    months.forEach((month) => {
+      monthlyData[month] = { sales: 0, revenue: 0 };
+    });
+
+    // Aggregate orders by month
+    orders.forEach((order) => {
+      const month = new Date(order.createdAt).toLocaleString("en-US", {
+        month: "short",
+      });
+      monthlyData[month].sales += order.totalPrice;
+      monthlyData[month].revenue += order.finalPrice;
+    });
+
+    // Convert to array for chart
+    const salesReport = months.map((month) => ({
+      month,
+      sales: monthlyData[month].sales,
+      revenue: monthlyData[month].revenue,
+    }));
+
+    res.status(200).json({ data: salesReport });
   } catch (error) {
     if (error instanceof Error) {
       next(new CustomError(500, error.message));

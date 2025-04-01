@@ -5,7 +5,8 @@ import {
   updateOrder,
   deleteOrder,
   getOrdersByUserId,
-  calculateCouponDiscount,
+  getOrderStats,
+  getSalesReport
 } from "../controllers/orderController";
 import express, { Router } from "express";
 import verifyToken from "../middlewares/authMiddleware";
@@ -13,7 +14,6 @@ import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
 router.post("/create", verifyToken, createOrder);
-router.post("/calculate-coupon-discount", calculateCouponDiscount);
 router.post(
   "/stripe-webhook",
   express.raw({ type: "application/json" }),
@@ -23,5 +23,7 @@ router.get("/getOrders", verifyToken, getOrders);
 router.patch("/updateOrder", verifyToken, updateOrder);
 router.delete("/deleteOrder", verifyToken, deleteOrder);
 router.get("/getUserOrders", verifyToken, getOrdersByUserId);
+router.get("/stats", verifyToken, getOrderStats);
+router.get("/sales-report", verifyToken, getSalesReport);
 
 export default router;
