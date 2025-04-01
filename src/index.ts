@@ -45,7 +45,7 @@ app.use(express.urlencoded({ extended: false }));
 const allowedOrigins = [
   "https://rwf4p3bf-3000.inc1.devtunnels.ms",
   "https://dashboard-adaired.vercel.app",
-  "https://ad-admin-wine.vercel.app",
+  "https://ad-admin-five.vercel.app",
   "https://www.adaired.com",
   "https://adaired.com",
   "http://localhost:3000",
