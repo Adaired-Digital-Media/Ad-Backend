@@ -1,4 +1,3 @@
-// types/couponTypes.ts
 import { Types } from "mongoose";
 
 export interface CouponTypes {
@@ -10,6 +9,8 @@ export interface CouponTypes {
   maxDiscountAmount?: number;
   specificProduct?: Types.ObjectId;
   minQuantity?: number;
+  maxQuantity?: number;
+  maxWordCount?: number;
   usageLimitPerUser?: number;
   totalUsageLimit?: number;
   usedCount?: number;

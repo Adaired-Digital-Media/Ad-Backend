@@ -2,7 +2,7 @@ import User from "../models/userModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import Cart from "../models/cartModel";
 import mongoose from "mongoose";
 import Role from "../models/roleModel";

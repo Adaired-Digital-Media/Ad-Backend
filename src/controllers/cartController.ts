@@ -1,7 +1,7 @@
 import Cart from "../models/cartModel";
 import Product from "../models/productModel";
 import Order from "../models/orderModel";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import { CustomError } from "../middlewares/error";

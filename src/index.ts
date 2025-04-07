@@ -22,7 +22,8 @@ import productCategoryRoute from "./routes/productCategory.routes";
 import cartRoute from "./routes/cart.routes";
 import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
-import { emptyCartJob, runEmptyExpiredCartsNow } from "./cron-jobs/empty-cart";
+import ticketRoutes from "./routes/ticket.routes";
+import { emptyCartJob } from "./cron-jobs/empty-cart";
 import mongoose from "mongoose";
 
 const app: Application = express();
@@ -94,6 +95,7 @@ app.use(`${basePath}/product/category`, productCategoryRoute);
 app.use(`${basePath}/cart`, cartRoute);
 app.use(`${basePath}/orders`, orderRoute);
 app.use(`${basePath}/coupons`, couponRoute);
+app.use(`${basePath}/tickets`, ticketRoutes);
 
 // Static files and View Engine
 app.use("/static", express.static(path.join(__dirname + "static")));

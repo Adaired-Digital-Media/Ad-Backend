@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 
 export interface RoleTypes {
+  _id: Types.ObjectId;
   name: string;
   description?: string;
   status: boolean;

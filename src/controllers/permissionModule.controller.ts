@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import PermissionModule from "../models/permissionModules.model";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
 

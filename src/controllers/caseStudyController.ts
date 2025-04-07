@@ -2,7 +2,7 @@ import { validationResult } from "express-validator";
 import CaseStudy from "../models/caseStudyModel";
 import CaseStudyCategories from "../models/caseStudyCategoryModel";
 import { Request, Response, NextFunction } from "express";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import slugify from "slugify";
 import mongoose from "mongoose";
 import { CustomError } from "../middlewares/error";

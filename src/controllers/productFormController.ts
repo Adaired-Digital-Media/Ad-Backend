@@ -1,7 +1,7 @@
 import FormModel from "../models/productFormModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 
 // ***************************************
 // ********** Create New Form ************

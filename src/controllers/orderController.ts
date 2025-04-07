@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import Order from "../models/orderModel";
 import Cart from "../models/cartModel";
 import { CustomError } from "../middlewares/error";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import axios from "axios";
 import { BASE_DOMAIN } from "../utils/globals";
 import { applyCoupon } from "./coupon.controller";

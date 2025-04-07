@@ -2,7 +2,7 @@ import BlogCategory from "../models/blogCategoryModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validationResult } from "express-validator";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import slugify from "slugify";
 import mongoose from "mongoose";
 

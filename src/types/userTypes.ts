@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { RoleTypes } from "./roleTypes";
 
 export type UserTypes = {
   image?: string;
@@ -8,7 +9,7 @@ export type UserTypes = {
   password?: string;
   contact?: string;
   isAdmin?: boolean;
-  role?: Types.ObjectId;
+  role?: Types.ObjectId | RoleTypes;
   cart?: Types.ObjectId;
   wishlist?: { productId: Types.ObjectId; dateAdded: Date }[];
   status?: string;

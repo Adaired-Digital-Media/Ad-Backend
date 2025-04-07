@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-import { check, body, param } from "express-validator";
+import { check, body, param, query } from "express-validator";
+import { TicketPriority, TicketStatus } from "../types/ticket.types";
 
 // ********** User and Authentication ***********
 export const validateRegister = [
@@ -1063,4 +1064,59 @@ export const validateProductUpdateCategory = [
     .optional()
     .isMongoId()
     .withMessage("Invalid user ID format"),
+];
+
+// ******************** Tickets ********************
+export const validateCreateTicket = [
+  body("subject")
+    .trim()
+    .notEmpty()
+    .withMessage("Subject is required")
+    .isLength({ max: 100 })
+    .withMessage("Subject must be less than 100 characters"),
+
+  body("description")
+    .trim()
+    .notEmpty()
+    .withMessage("Description is required")
+    .isLength({ max: 2000 })
+    .withMessage("Description must be less than 2000 characters"),
+
+  body("priority")
+    .optional()
+    .isIn(Object.values(TicketPriority))
+    .withMessage(
+      `Priority must be one of: ${Object.values(TicketPriority).join(", ")}`
+    ),
+
+  body("customer").optional().isMongoId().withMessage("Invalid customer ID"),
+
+  body("assignedTo")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid assigned user ID"),
+];
+
+export const validateUpdateTicket = [
+  body("message")
+    .if(body("message").exists())
+    .trim()
+    .notEmpty()
+    .withMessage("Message cannot be empty if provided")
+    .isLength({ max: 5000 })
+    .withMessage("Message must be less than 5000 characters"),
+
+  body("status")
+    .optional()
+    .isIn(Object.values(TicketStatus))
+    .withMessage(
+      `Status must be one of: ${Object.values(TicketStatus).join(", ")}`
+    ),
+
+  body("priority")
+    .optional()
+    .isIn(Object.values(TicketPriority))
+    .withMessage(
+      `Priority must be one of: ${Object.values(TicketPriority).join(", ")}`
+    ),
 ];

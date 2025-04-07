@@ -2,7 +2,7 @@ import Category from "../models/productCategoryModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import { CategoryTypes } from "../types/productTypes";
 import { validationResult } from "express-validator";
 import { Types } from "mongoose";

@@ -3,7 +3,7 @@ import User from "../models/userModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
-import checkPermission from "../helpers/authHelper";
+import {checkPermission} from "../helpers/authHelper";
 import { RoleTypes } from "../types/roleTypes";
 import mongoose from "mongoose";
 

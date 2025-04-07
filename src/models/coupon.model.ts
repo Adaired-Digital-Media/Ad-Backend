@@ -1,4 +1,4 @@
-// models/couponModel.ts
+
 import mongoose, { Schema } from "mongoose";
 import { CouponTypes } from "../types/coupon.types";
 
@@ -38,6 +38,16 @@ const CouponSchema = new Schema<CouponTypes>(
     minQuantity: {
       type: Number,
       default: 1,
+      min: 1,
+    },
+    maxQuantity: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+    maxWordCount: {
+      type: Number,
+      default: null,
       min: 1,
     },
     usageLimitPerUser: {
