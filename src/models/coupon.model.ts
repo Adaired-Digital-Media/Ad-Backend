@@ -1,5 +1,4 @@
-
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 import { CouponTypes } from "../types/coupon.types";
 
 const CouponSchema = new Schema<CouponTypes>(
@@ -11,15 +10,34 @@ const CouponSchema = new Schema<CouponTypes>(
       uppercase: true,
       trim: true,
     },
+    couponApplicableOn: {
+      type: String,
+      enum: ["allProducts", "specificProducts", "productCategories"],
+      required: true,
+    },
+    couponType: {
+      type: String,
+      enum: ["all", "quantityBased"],
+      required: true,
+    },
     discountType: {
       type: String,
-      enum: ["PERCENTAGE", "FLAT", "PRODUCT_SPECIFIC", "QUANTITY_BASED"],
+      enum: ["percentage", "flat"],
       required: true,
     },
     discountValue: {
       type: Number,
       required: true,
       min: 0,
+      validate: {
+        validator: function (value: number) {
+          if (this.discountType === "percentage") {
+            return value <= 100;
+          }
+          return true; 
+        },
+        message: "Discount value must be between 0 and 100 for percentage discounts",
+      },
     },
     minOrderAmount: {
       type: Number,
@@ -30,15 +48,48 @@ const CouponSchema = new Schema<CouponTypes>(
       type: Number,
       default: Infinity,
     },
-    specificProduct: {
-      type: Schema.Types.ObjectId,
-      ref: "Product",
-      default: null,
+    specificProducts: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+      default: [],
+      validate: {
+        validator: function (value: Types.ObjectId[]) {
+          if (this.couponApplicableOn === "specificProducts") {
+            return value && value.length > 0;
+          }
+          return value.length === 0;
+        },
+        message:
+          "specificProducts is required for specificProducts applicability and must not be provided for others",
+      },
+    },
+    productCategories: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Category" }],
+      default: [],
+      validate: {
+        validator: function (value: Types.ObjectId[]) {
+          if (this.couponApplicableOn === "productCategories") {
+            return value && value.length > 0;
+          }
+          return value.length === 0;
+        },
+        message:
+          "productCategories is required for productCategories applicability and must not be provided for others",
+      },
     },
     minQuantity: {
       type: Number,
       default: 1,
       min: 1,
+      validate: {
+        validator: function (value: number) {
+          if (this.couponType === "quantityBased") {
+            return value >= 1;
+          }
+          return true;
+        },
+        message:
+          "Minimum quantity must be greater or equal to 1 for quantityBased coupon type",
+      },
     },
     maxQuantity: {
       type: Number,
@@ -68,9 +119,9 @@ const CouponSchema = new Schema<CouponTypes>(
         usageCount: { type: Number, default: 0 },
       },
     ],
-    isActive: {
-      type: Boolean,
-      default: true,
+    status: {
+      type: String,
+      default: "Active",
     },
     expiresAt: {
       type: Date,

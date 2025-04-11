@@ -22,7 +22,8 @@ export enum TicketStatus {
   OPEN = "Open",
   IN_PROGRESS = "In Progress",
   RESOLVED = "Resolved",
-  CLOSED = "Closed"
+  CLOSED = "Closed",
+  REOPENED = "Reopened"
 }
 
 export enum TicketPriority {
@@ -40,6 +41,7 @@ export interface TicketMetadata {
 
 export interface Ticket {
   _id: Types.ObjectId;
+  ticketId: string;
   subject: string;
   description: string;
   status: TicketStatus;

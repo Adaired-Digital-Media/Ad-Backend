@@ -3,10 +3,10 @@ import Stripe from "stripe";
 import Order from "../models/orderModel";
 import Cart from "../models/cartModel";
 import { CustomError } from "../middlewares/error";
-import {checkPermission} from "../helpers/authHelper";
+import { checkPermission } from "../helpers/authHelper";
 import axios from "axios";
 import { BASE_DOMAIN } from "../utils/globals";
-import { applyCoupon } from "./coupon.controller";
+import { applyCoupon, recordCouponUsage } from "./coupon.controller";
 import {
   sendAdminNewOrderEmail,
   sendAdminPaymentReceivedEmail,
@@ -14,6 +14,7 @@ import {
   sendPaymentConfirmationEmail,
 } from "../utils/mailer";
 import { OrderStatsResponse, RawChartDataItem } from "../types/orderTypes";
+import { Types } from "mongoose";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -278,6 +279,14 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           { new: true }
         );
         if (updatedOrder) {
+          // Record coupon usage after successful payment
+          if (session.metadata.couponId) {
+            await recordCouponUsage(
+              new Types.ObjectId(session.metadata.couponId),
+              session.metadata.userId
+            );
+          }
+
           // Send emails asynchronously
           Promise.all([
             sendPaymentConfirmationEmail(updatedOrder._id.toString()),

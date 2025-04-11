@@ -21,6 +21,7 @@ const TicketMessageSchema = new Schema(
 
 const TicketSchema = new Schema<Ticket>(
   {
+    ticketId: { type: String, unique: true },
     subject: { type: String, required: true },
     description: { type: String, required: true },
     status: {
@@ -51,6 +52,37 @@ const TicketSchema = new Schema<Ticket>(
   },
   { timestamps: true }
 );
+
+// Add static method to generate ticket ID
+TicketSchema.statics.generateTicketId = async function () {
+  const prefix = "ADTKT-";
+  // Find the highest existing ticketId
+  const lastTicket = await this.findOne({}, { ticketId: 1 })
+    .sort({ ticketId: -1 })
+    .lean();
+
+  let nextNum = 1;
+  if (lastTicket?.ticketId) {
+    const lastNum = parseInt(lastTicket.ticketId.replace(prefix, ""), 10);
+    if (!isNaN(lastNum)) {
+      nextNum = lastNum + 1;
+    }
+  }
+
+  return `${prefix}${nextNum.toString().padStart(2, "0")}`;
+};
+
+// Pre-save hook to set ticketId
+TicketSchema.pre("save", async function (next) {
+  if (!this.isNew || this.ticketId) return next();
+
+  try {
+    this.ticketId = await (this.constructor as any).generateTicketId();
+    next();
+  } catch (err: any) {
+    next(err);
+  }
+});
 
 // Indexes
 TicketSchema.index({ status: 1 });

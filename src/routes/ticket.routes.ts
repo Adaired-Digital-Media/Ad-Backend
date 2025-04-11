@@ -3,6 +3,7 @@ import {
   createTicket,
   deleteTicket,
   getTickets,
+  getTicketStats,
   updateTicket,
 } from "../controllers/ticket.controller";
 import { validateCreateTicket } from "../helpers/validator";
@@ -21,6 +22,8 @@ router.post(
 );
 
 router.get("/read", verifyToken, getTickets);
+
+router.get("/stats", verifyToken, getTicketStats);
 
 router.patch("/update", upload.array("attachments"), verifyToken, updateTicket);
 

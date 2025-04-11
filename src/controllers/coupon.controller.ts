@@ -5,12 +5,14 @@ import { checkPermission } from "../helpers/authHelper";
 import { validateInput } from "../utils/validateInput";
 import { NextFunction, Request, Response } from "express";
 
-// Helper function to calculate discount.
+// Helper function to calculate discount
 export const calculateDiscount = (
   coupon: any,
   cartData: {
     products: {
-      product: Types.ObjectId;
+      product:
+        | Types.ObjectId
+        | { _id: Types.ObjectId; category: Types.ObjectId };
       quantity: number;
       wordCount: number;
       totalPrice: number;
@@ -22,16 +24,46 @@ export const calculateDiscount = (
 ): {
   discount: number;
   discountedTotal: number;
-  appliedTo?: Types.ObjectId;
+  appliedTo?: Types.ObjectId[];
 } => {
   let discount = 0;
   let discountedTotal = cartData.totalPrice;
-  let appliedTo: Types.ObjectId | undefined = undefined;
+  let appliedTo: Types.ObjectId[] = [];
 
-  // Special handling for 100% off coupons
-  if (coupon.discountValue === 100 && coupon.discountType === "PERCENTAGE") {
-    // Find all qualifying products (meet word count if specified)
-    const qualifyingProducts = cartData.products.filter(
+  // Filter products based on couponApplicableOn
+  let eligibleProducts = cartData.products;
+  if (coupon.couponApplicableOn === "specificProducts") {
+    eligibleProducts = cartData.products.filter((p) =>
+      coupon.specificProducts.some((sp: Types.ObjectId) =>
+        sp.equals(typeof p.product === "object" ? p.product._id : p.product)
+      )
+    );
+  } else if (coupon.couponApplicableOn === "productCategories") {
+    eligibleProducts = cartData.products.filter((p) =>
+      coupon.productCategories.some((cat: Types.ObjectId) =>
+        cat.equals(
+          typeof p.product === "object" && "category" in p.product
+            ? p.product.category
+            : p.product
+        )
+      )
+    );
+  }
+
+  if (
+    (coupon.couponApplicableOn === "specificProducts" ||
+      coupon.couponApplicableOn === "productCategories") &&
+    eligibleProducts.length === 0
+  ) {
+    throw new CustomError(
+      400,
+      `No qualifying products found for coupon "${coupon.code}"`
+    );
+  }
+
+  // Special handling for 100% off coupons (percentage only)
+  if (coupon.discountType === "percentage" && coupon.discountValue === 100) {
+    const qualifyingProducts = eligibleProducts.filter(
       (product) =>
         !coupon.maxWordCount || product.wordCount <= coupon.maxWordCount
     );
@@ -45,78 +77,65 @@ export const calculateDiscount = (
       );
     }
 
-    // Find the lowest priced qualifying product
     const productToDiscount = qualifyingProducts.reduce((lowest, current) =>
       current.totalPrice < lowest.totalPrice ? current : lowest
     );
 
-    // Validate quantity is 1
     if (productToDiscount.quantity !== 1) {
       throw new CustomError(
         400,
-
-        `"${coupon.code}" applies to single-item purchases only. 
-Please remove other items and set quantity to 1 to enjoy this discount.`
+        `"${coupon.code}" applies to single-item purchases only. Please remove other items and set quantity to 1 to enjoy this discount.`
       );
     }
 
-    // Apply 100% discount to this product
     discount = productToDiscount.totalPrice;
     discountedTotal = cartData.totalPrice - discount;
-    appliedTo = productToDiscount.product;
+    appliedTo = [
+      typeof productToDiscount.product === "object"
+        ? productToDiscount.product._id
+        : productToDiscount.product,
+    ];
 
     return { discount, discountedTotal, appliedTo };
   }
 
-  // Existing logic for other coupon types
-  switch (coupon.discountType) {
-    case "PERCENTAGE":
-      if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
-        throw new CustomError(400, "Minimum order amount not met");
-      }
-      discount = (cartData.totalPrice * coupon.discountValue) / 100;
-      discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
-      break;
-
-    case "FLAT":
-      if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
-        throw new CustomError(400, "Minimum order amount not met");
-      }
-      discount = coupon.discountValue;
-      break;
-
-    case "PRODUCT_SPECIFIC":
-      const specificProduct = cartData.products.find(
-        (p) => p.product._id.toString() === coupon.specificProduct?.toString()
+  // Check couponType
+  if (coupon.couponType === "quantityBased") {
+    const hasEnoughQuantity = eligibleProducts.some(
+      (p) => p.quantity >= (coupon.minQuantity || 1)
+    );
+    if (!hasEnoughQuantity) {
+      throw new CustomError(
+        400,
+        `Minimum quantity of ${coupon.minQuantity} required for coupon "${coupon.code}"`
       );
-      if (!specificProduct) {
-        throw new CustomError(
-          400,
-          `Product required for coupon "${coupon.code}" not found`
-        );
-      }
-      discount = specificProduct.totalPrice * (coupon.discountValue / 100);
-      appliedTo = specificProduct.product;
-      break;
-
-    case "QUANTITY_BASED":
-      const hasEnoughQuantity = cartData.products.some(
-        (p) => p.quantity >= (coupon.minQuantity || 1)
-      );
-      if (!hasEnoughQuantity) {
-        throw new CustomError(
-          400,
-          `Minimum quantity of ${coupon.minQuantity} required for coupon "${coupon.code}"`
-        );
-      }
-      discount = (cartData.totalPrice * coupon.discountValue) / 100;
-      discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
-      break;
-
-    default:
-      throw new CustomError(400, "Invalid discount type");
+    }
   }
 
+  // Calculate discount based on discountType
+  const eligibleTotal = eligibleProducts.reduce(
+    (sum, p) => sum + p.totalPrice,
+    0
+  );
+  if (coupon.discountType === "percentage") {
+    if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
+      throw new CustomError(400, "Minimum order amount not met");
+    }
+    discount = (eligibleTotal * coupon.discountValue) / 100;
+    discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
+  } else if (coupon.discountType === "flat") {
+    if (cartData.totalPrice < (coupon.minOrderAmount || 0)) {
+      throw new CustomError(400, "Minimum order amount not met");
+    }
+    discount = coupon.discountValue;
+    discount = Math.min(discount, coupon.maxDiscountAmount || Infinity);
+  } else {
+    throw new CustomError(400, "Invalid discount type");
+  }
+
+  appliedTo = eligibleProducts.map((p) =>
+    typeof p.product === "object" ? p.product._id : p.product
+  );
   discountedTotal = Math.max(0, cartData.totalPrice - discount);
   return { discount, discountedTotal, appliedTo };
 };
@@ -130,83 +149,113 @@ export const applyCoupon = async (
   coupon: any;
   discountUSD: number;
   finalPriceUSD: number;
-  appliedTo?: Types.ObjectId;
+  appliedTo?: Types.ObjectId[];
   message?: string;
 }> => {
   let discountUSD = 0;
   let finalPriceUSD = cart.totalPrice;
-  let coupon = null;
-  let appliedTo: Types.ObjectId | undefined = undefined;
-  let message = "Coupon applied successfully";
+  let appliedTo: Types.ObjectId[] = [];
 
-  if (couponCode) {
-    coupon = await Coupon.findOne({
-      code: couponCode,
-      isActive: true,
-      $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
-    });
+  // Find active coupon
+  const coupon = await Coupon.findOne({
+    code: couponCode,
+    status: "Active",
+    $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
+  });
 
-    if (!coupon) {
-      throw new CustomError(404, "Invalid or expired coupon");
-    }
-
-    // Check usage limits
-    const userUsage = coupon.userUsage?.find(
-      (u: any) => u.userId.toString() === userId
-    );
-    if (userUsage && userUsage.usageCount >= coupon.usageLimitPerUser) {
-      throw new CustomError(
-        400,
-        `You've reached the usage limit for coupon "${coupon.code}"`
-      );
-    }
-    if (coupon.usedCount >= coupon.totalUsageLimit) {
-      throw new CustomError(
-        400,
-        `Coupon "${coupon.code}" has reached its total usage limit`
-      );
-    }
-
-    const {
-      discount,
-      discountedTotal,
-      appliedTo: productId,
-    } = calculateDiscount(coupon, {
-      products: cart.products,
-      totalPrice: cart.totalPrice,
-      totalQuantity: cart.totalQuantity,
-    });
-
-    discountUSD = discount;
-    finalPriceUSD = discountedTotal;
-    appliedTo = productId;
-
-    // Custom message for 100% off coupon
-    if (coupon.discountValue === 100 && coupon.discountType === "PERCENTAGE") {
-      const product = cart.products.find((p: any) =>
-        p.product.equals(productId)
-      );
-      message = `100% discount applied to "${
-        product?.product?.name || "your item"
-      }" (max ${coupon.maxWordCount} words)`;
-    }
-
-    // Update coupon usage
-    if (userUsage) {
-      userUsage.usageCount += 1;
-    } else {
-      coupon.userUsage = coupon.userUsage || [];
-      coupon.userUsage.push({
-        userId: new Types.ObjectId(userId),
-        usageCount: 1,
-      });
-    }
-    coupon.usedCount += 1;
-    await coupon.save();
+  if (!coupon) {
+    throw new CustomError(404, "Invalid or expired coupon");
   }
 
+  // Check usage limits
+  const userUsage = coupon.userUsage?.find(
+    (u: any) => u.userId.toString() === userId
+  );
+
+  if (userUsage && userUsage.usageCount >= coupon.usageLimitPerUser) {
+    throw new CustomError(
+      400,
+      `You've reached the usage limit for coupon "${coupon.code}"`
+    );
+  }
+
+  if (coupon.usedCount >= coupon.totalUsageLimit) {
+    throw new CustomError(
+      400,
+      `Coupon "${coupon.code}" has reached its total usage limit`
+    );
+  }
+
+  const {
+    discount,
+    discountedTotal,
+    appliedTo: discountedProducts = [],
+  } = calculateDiscount(coupon, {
+    products: cart.products,
+    totalPrice: cart.totalPrice,
+    totalQuantity: cart.totalQuantity,
+  });
+
+  discountUSD = discount;
+  finalPriceUSD = discountedTotal;
+  appliedTo = discountedProducts;
+
+  let message = "Coupon applied successfully";
+  if (coupon.couponApplicableOn === "specificProducts") {
+    if (appliedTo.length === 1) {
+      const product = cart.products.find((p: any) =>
+        p.product._id.equals(appliedTo[0])
+      );
+      message = `Discount applied to "${
+        product?.product?.name || "your item"
+      }"`;
+    } else if (appliedTo.length > 1) {
+      message = `Discount applied to ${appliedTo.length} products`;
+    }
+  } else if (coupon.couponApplicableOn === "productCategories") {
+    message = `Discount applied to products in selected categories`;
+  } else if (
+    coupon.discountType === "percentage" &&
+    coupon.discountValue === 100
+  ) {
+    const product = cart.products.find((p: any) =>
+      p.product._id.equals(appliedTo[0])
+    );
+    message = `100% discount applied to "${
+      product?.product?.name || "your item"
+    }"${coupon.maxWordCount ? ` (max ${coupon.maxWordCount} words)` : ""}`;
+  }
   return { coupon, discountUSD, finalPriceUSD, appliedTo, message };
 };
+
+// Helper to actually apply coupon usage (call this after successful payment)
+export const recordCouponUsage = async (
+  couponId: Types.ObjectId,
+  userId: string
+): Promise<void> => {
+  const coupon = await Coupon.findById(couponId);
+  if (!coupon) {
+    throw new CustomError(404, "Coupon not found");
+  }
+
+  // Update coupon usage
+  const userUsage = coupon.userUsage?.find(
+    (u: any) => u.userId.toString() === userId
+  );
+
+  if (userUsage) {
+    userUsage.usageCount += 1;
+  } else {
+    coupon.userUsage = coupon.userUsage || [];
+    coupon.userUsage.push({
+      userId: new Types.ObjectId(userId),
+      usageCount: 1,
+    });
+  }
+  coupon.usedCount += 1;
+  await coupon.save();
+};
+
 // *********************************************************
 // ******************* Create New Coupon *******************
 // *********************************************************
@@ -267,14 +316,14 @@ export const calculateCouponDiscount = async (
         originalTotal: cartData.totalPrice,
         couponDiscount: 0,
         finalPrice: cartData.totalPrice,
-        appliedTo: null,
+        appliedTo: [],
         productDiscounts: {},
       });
     }
 
     const coupon = await Coupon.findOne({
       code: code,
-      isActive: true,
+      status: "Active",
       $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
     });
 
@@ -282,28 +331,32 @@ export const calculateCouponDiscount = async (
       return next(new CustomError(404, "Invalid or expired coupon"));
     }
 
-    const { discount, discountedTotal, appliedTo } = calculateDiscount(
-      coupon,
-      cartData
-    );
+    const {
+      discount,
+      discountedTotal,
+      appliedTo = [],
+    } = calculateDiscount(coupon, cartData);
 
-    const productDiscounts: { [key: string]: number } = {};
-    if (appliedTo) {
-      const targetedProduct = cartData.products.find(
-        (p: any) => p.product.toString() === appliedTo.toString()
+    // Build product discounts map
+    const productDiscounts: Record<string, number> = {};
+    appliedTo.forEach((productId) => {
+      const product = cartData.products.find(
+        (p: any) => p.product._id.toString() === productId.toString()
       );
-      productDiscounts[appliedTo._id.toString()] = targetedProduct.totalPrice;
-    } else {
-      cartData.products.forEach((product: any) => {
-        productDiscounts[product.product._id.toString()] = 0;
-      });
-    }
+      if (product) {
+        productDiscounts[productId.toString()] =
+          coupon.discountType === "flat"
+            ? coupon.discountValue
+            : (product.totalPrice * coupon.discountValue) / 100;
+      }
+    });
+
     res.status(200).json({
       message: "Coupon discount calculated successfully",
       originalTotal: cartData.totalPrice,
       couponDiscount: discount,
       finalPrice: discountedTotal,
-      appliedTo: appliedTo?._id?.toString() || null,
+      appliedTo: appliedTo.map((id) => id.toString()),
       productDiscounts,
     });
   } catch (error) {
@@ -325,8 +378,13 @@ export const updateCoupon = async (
   next: NextFunction
 ) => {
   try {
-    const { userId, params, body } = req;
-    const { couponId } = params;
+    const { userId, body } = req;
+    const { id } = req.query;
+
+    // Validate coupon ID exists in query
+    if (!id) {
+      throw new CustomError(400, "Coupon ID is required in query parameters");
+    }
 
     // Check Permission
     const permissionCheck = await checkPermission(userId, "coupons", 2);
@@ -334,20 +392,206 @@ export const updateCoupon = async (
       throw new CustomError(403, "Permission denied");
     }
 
+    // List of allowed fields that can be updated
+    const updatableFields = [
+      "code",
+      "couponApplicableOn",
+      "couponType",
+      "discountType",
+      "discountValue",
+      "minOrderAmount",
+      "maxDiscountAmount",
+      "specificProducts",
+      "productCategories",
+      "minQuantity",
+      "maxQuantity",
+      "maxWordCount",
+      "usageLimitPerUser",
+      "totalUsageLimit",
+      "status",
+      "expiresAt",
+      "description",
+    ];
+
+    // Filter the update body to only include allowed fields
+    const filteredUpdate: Record<string, any> = { updatedBy: userId };
+
+    Object.keys(body).forEach((key) => {
+      if (updatableFields.includes(key)) {
+        filteredUpdate[key] = body[key];
+      }
+    });
+
+    // Verify at least one valid field is being updated
+    if (Object.keys(filteredUpdate).length <= 1) {
+      // Only has updatedBy
+      throw new CustomError(400, "No valid fields provided for update");
+    }
+
     // Find and update the coupon
-    const updatedCoupon = await Coupon.findByIdAndUpdate(
-      couponId,
-      { ...body, updatedBy: userId },
-      { new: true, runValidators: true }
-    );
+    const updatedCoupon = await Coupon.findByIdAndUpdate(id, filteredUpdate, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedCoupon) {
       throw new CustomError(404, "Coupon not found");
     }
 
     res.status(200).json({
+      success: true,
       message: "Coupon updated successfully",
       data: updatedCoupon,
+    });
+  } catch (error: any) {
+    next(new CustomError(error.statusCode || 500, error.message));
+  }
+};
+
+// *********************************************************
+// ******************* Get Coupons *************************
+// *********************************************************
+export const getCoupons = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId, query } = req;
+    const { id, status, search } = query;
+
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "coupons", 1);
+    if (!permissionCheck) {
+      throw new CustomError(403, "Permission denied");
+    }
+
+    // If ID is provided, return single coupon
+    if (id) {
+      const coupon = await Coupon.findById(id)
+        .populate("createdBy", "_id name image email")
+        .populate("updatedBy", "_id name image email");
+      if (!coupon) {
+        throw new CustomError(404, "Coupon not found");
+      }
+
+      return res.status(200).json({
+        message: "Coupon fetched successfully",
+        data: coupon,
+      });
+    }
+
+    // Otherwise, return all coupons with optional filters
+    const queryParams: Record<string, any> = {};
+
+    if (status !== undefined) {
+      queryParams.status = status === "Active";
+    }
+
+    if (search) {
+      queryParams.$or = [
+        { code: { $regex: search as string, $options: "i" } },
+        { description: { $regex: search as string, $options: "i" } },
+      ];
+    }
+
+    const coupons = await Coupon.find(queryParams)
+      .sort({ createdAt: -1 })
+      .populate("createdBy", "_id name image email")
+      .populate("updatedBy", "_id name image email");
+
+    res.status(200).json({
+      message: "Coupons fetched successfully",
+      data: coupons,
+      count: coupons.length,
+    });
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
+  }
+};
+
+// *********************************************************
+// ******************* Delete Coupon ***********************
+// *********************************************************
+export const deleteCoupon = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+    const { id } = req.query;
+
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "coupons", 3);
+    if (!permissionCheck) {
+      throw new CustomError(403, "Permission denied");
+    }
+
+    const coupon = await Coupon.findByIdAndDelete(id);
+    if (!coupon) {
+      throw new CustomError(404, "Coupon not found");
+    }
+
+    res.status(200).json({
+      message: "Coupon deleted successfully",
+      data: coupon,
+    });
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
+  }
+};
+
+// *********************************************************
+// **************** Get Coupon Usage Stats *****************
+// *********************************************************
+export const getCouponStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+
+    // Check Permission
+    const permissionCheck = await checkPermission(userId, "coupons", 1);
+    if (!permissionCheck) {
+      throw new CustomError(403, "Permission denied");
+    }
+
+    const stats = await Coupon.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalCoupons: { $sum: 1 },
+          activeCoupons: {
+            $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+          },
+          usedCoupons: { $sum: "$usedCount" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCoupons: 1,
+          activeCoupons: 1,
+          inactiveCoupons: { $subtract: ["$totalCoupons", "$activeCoupons"] },
+          usedCoupons: 1,
+        },
+      },
+    ]);
+
+    const popularCoupons = await Coupon.find()
+      .sort({ usedCount: -1 })
+      .limit(5)
+      .select("code usedCount");
+
+    res.status(200).json({
+      message: "Coupon stats fetched successfully",
+      data: {
+        stats: stats[0] || {},
+        popularCoupons,
+      },
     });
   } catch (error: any) {
     next(new CustomError(500, error.message));

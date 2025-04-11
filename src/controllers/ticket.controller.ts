@@ -54,7 +54,7 @@ export const createTicket = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     // Validate user input
     if (!validateInput(req, res)) return;
@@ -170,6 +170,10 @@ export const createTicket = async (
       data: populatedTicket,
     });
   } catch (error: any) {
+    if (error.code === 11000 && error.keyPattern?.ticketId) {
+      // Handle duplicate ticketId error by retrying
+      return createTicket(req, res, next);
+    }
     next(new CustomError(500, error.message));
   }
 };
@@ -220,6 +224,7 @@ export const getTickets = async (
         .populate("createdBy", "image name email")
         .populate("assignedTo", "image name email")
         .populate("customer", "image name email")
+        .populate("messages.sender", "image name email")
         .sort({ createdAt: -1 })
         .skip((Number(page) - 1) * Number(limit))
         .limit(Number(limit)),
@@ -236,6 +241,105 @@ export const getTickets = async (
         totalPages: Math.ceil(total / Number(limit)),
       },
     });
+  } catch (error: any) {
+    next(new CustomError(500, error.message));
+  }
+};
+
+// *********************************************************
+// ********************* Ticket Stats **********************
+// *********************************************************
+export const getTicketStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req;
+
+    // Get user type and basic permissions
+    const userType = await getUserRoleType(userId);
+    const isAdmin = userType === "admin";
+    const isSupport = userType === "support";
+    const isCustomer = userType === "customer";
+    const hasStatsPermission = await checkPermission(userId, "tickets", 1);
+
+    // Common base for all responses
+    const response: any = {
+      success: true,
+      data: {},
+    };
+
+    if (isAdmin || hasStatsPermission) {
+      // Admin/Manager Stats
+      const [total, open, closed, assignedToMe] = await Promise.all([
+        TicketModel.countDocuments(),
+        TicketModel.countDocuments({ status: TicketStatus.OPEN }),
+        TicketModel.countDocuments({ status: TicketStatus.CLOSED }),
+        TicketModel.countDocuments({ assignedTo: userId }),
+      ]);
+
+      response.data = {
+        totalTickets: total,
+        openTickets: open,
+        closedTickets: closed,
+        ticketsAssignedToMe: assignedToMe,
+      };
+    } else if (isSupport) {
+      // Support Agent Stats
+      const [assigned, pending, delivered] = await Promise.all([
+        TicketModel.countDocuments({ assignedTo: userId }),
+        TicketModel.countDocuments({
+          assignedTo: userId,
+          status: { $ne: "closed" },
+        }),
+        TicketModel.countDocuments({
+          assignedTo: userId,
+          status: "closed",
+        }),
+      ]);
+
+      const efficiency =
+        assigned > 0 ? Math.round((delivered / assigned) * 100) : 0;
+
+      response.data = {
+        totalAssignedToMe: assigned,
+        pendingTickets: pending,
+        deliveredTickets: delivered,
+        myEfficiency: efficiency,
+      };
+    } else if (isCustomer) {
+      // Customer Stats
+      const [total, open, closed, reopened] = await Promise.all([
+        TicketModel.countDocuments({ customer: userId }),
+        TicketModel.countDocuments({
+          customer: userId,
+          status: TicketStatus.OPEN,
+        }),
+        TicketModel.countDocuments({
+          customer: userId,
+          status: TicketStatus.OPEN,
+        }),
+        TicketModel.countDocuments({
+          customer: userId,
+          status: TicketStatus.REOPENED,
+        }),
+      ]);
+
+      response.data = {
+        totalTicketsRaised: total,
+        openTickets: open,
+        closedTickets: closed,
+        reopenedTickets: reopened,
+      };
+    } else {
+      throw new CustomError(
+        403,
+        "You don't have permission to view statistics"
+      );
+    }
+
+    res.status(200).json(response);
   } catch (error: any) {
     next(new CustomError(500, error.message));
   }

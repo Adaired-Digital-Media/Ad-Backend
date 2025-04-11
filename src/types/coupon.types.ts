@@ -3,11 +3,14 @@ import { Types } from "mongoose";
 export interface CouponTypes {
   _id?: Types.ObjectId;
   code: string;
-  discountType: "PERCENTAGE" | "FLAT" | "PRODUCT_SPECIFIC" | "QUANTITY_BASED";
-  discountValue: number;
+  couponApplicableOn: "allProducts" | "specificProducts" | "productCategories";
+  couponType: "all" | "quantityBased";
+  discountType: "percentage" | "flat";
+  discountValue: number; // Percentage (0-100) for percentage; flat amount for flat
   minOrderAmount?: number;
   maxDiscountAmount?: number;
-  specificProduct?: Types.ObjectId;
+  specificProducts?: Types.ObjectId[];
+  productCategories?: Types.ObjectId[];
   minQuantity?: number;
   maxQuantity?: number;
   maxWordCount?: number;
@@ -18,7 +21,7 @@ export interface CouponTypes {
     userId: Types.ObjectId;
     usageCount: number;
   }[];
-  isActive?: boolean;
+  status?: string;
   expiresAt?: Date;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
