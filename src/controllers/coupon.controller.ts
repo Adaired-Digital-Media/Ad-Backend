@@ -289,7 +289,12 @@ export const createCoupon = async (
       data: newCoupon,
     });
   } catch (error: any) {
-    next(new CustomError(500, error.message));
+    // Handle validation errors
+    if (error.message.includes("required") || error.message.includes("empty")) {
+      next(new CustomError(400, error.message));
+    } else {
+      next(new CustomError(500, error.message));
+    }
   }
 };
 
@@ -392,51 +397,70 @@ export const updateCoupon = async (
       throw new CustomError(403, "Permission denied");
     }
 
-    // List of allowed fields that can be updated
-    const updatableFields = [
-      "code",
-      "couponApplicableOn",
-      "couponType",
-      "discountType",
-      "discountValue",
-      "minOrderAmount",
-      "maxDiscountAmount",
-      "specificProducts",
-      "productCategories",
-      "minQuantity",
-      "maxQuantity",
-      "maxWordCount",
-      "usageLimitPerUser",
-      "totalUsageLimit",
-      "status",
-      "expiresAt",
-      "description",
-    ];
-
-    // Filter the update body to only include allowed fields
-    const filteredUpdate: Record<string, any> = { updatedBy: userId };
-
-    Object.keys(body).forEach((key) => {
-      if (updatableFields.includes(key)) {
-        filteredUpdate[key] = body[key];
-      }
-    });
-
-    // Verify at least one valid field is being updated
-    if (Object.keys(filteredUpdate).length <= 1) {
-      // Only has updatedBy
-      throw new CustomError(400, "No valid fields provided for update");
+    // Find existing coupon
+    const existingCoupon = await Coupon.findById(id);
+    if (!existingCoupon) {
+      throw new CustomError(404, "Coupon not found");
     }
 
-    // Find and update the coupon
-    const updatedCoupon = await Coupon.findByIdAndUpdate(id, filteredUpdate, {
+    // Apply updates
+    const updates = {
+      ...existingCoupon.toObject(),
+      ...body,
+      updatedBy: userId,
+    };
+
+    // Save (triggers pre-save validation)
+    const updatedCoupon = await Coupon.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
     });
 
-    if (!updatedCoupon) {
-      throw new CustomError(404, "Coupon not found");
-    }
+    // // List of allowed fields that can be updated
+    // const updatableFields = [
+    //   "code",
+    //   "couponApplicableOn",
+    //   "couponType",
+    //   "discountType",
+    //   "discountValue",
+    //   "minOrderAmount",
+    //   "maxDiscountAmount",
+    //   "specificProducts",
+    //   "productCategories",
+    //   "minQuantity",
+    //   "maxQuantity",
+    //   "maxWordCount",
+    //   "usageLimitPerUser",
+    //   "totalUsageLimit",
+    //   "status",
+    //   "expiresAt",
+    // ];
+
+    // // Filter the update body to only include allowed fields
+    // const filteredUpdate: Record<string, any> = { updatedBy: userId };
+
+    // Object.keys(body).forEach((key) => {
+    //   if (updatableFields.includes(key)) {
+    //     filteredUpdate[key] = body[key];
+    //   }
+    // });
+
+    // // Verify at least one valid field is being updated
+    // if (Object.keys(filteredUpdate).length <= 1) {
+    //   // Only has updatedBy
+    //   throw new CustomError(400, "No valid fields provided for update");
+    // }
+
+    // // Find and update the coupon
+    // const updatedCoupon = await Coupon.findByIdAndUpdate(id, filteredUpdate, {
+    //   new: true,
+    //   runValidators: true,
+    //   context: "query",
+    // });
+
+    // if (!updatedCoupon) {
+    //   throw new CustomError(404, "Coupon not found");
+    // }
 
     res.status(200).json({
       success: true,
@@ -444,7 +468,12 @@ export const updateCoupon = async (
       data: updatedCoupon,
     });
   } catch (error: any) {
-    next(new CustomError(error.statusCode || 500, error.message));
+    // Handle validation errors
+    if (error.message.includes("required") || error.message.includes("empty")) {
+      next(new CustomError(400, error.message));
+    } else {
+      next(new CustomError(500, error.message));
+    }
   }
 };
 
