@@ -165,7 +165,7 @@ const CouponSchema = new Schema<CouponTypes>(
     },
     couponType: {
       type: String,
-      enum: ["all", "quantityBased"],
+      enum: ["amountBased", "quantityBased"],
       required: true,
     },
     discountType: {
@@ -189,8 +189,8 @@ const CouponSchema = new Schema<CouponTypes>(
     },
     minOrderAmount: {
       type: Number,
-      default: 0,
-      min: 0,
+      default: 1,
+      min: 1,
     },
     maxDiscountAmount: {
       type: Number,

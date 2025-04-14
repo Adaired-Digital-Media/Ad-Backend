@@ -416,52 +416,6 @@ export const updateCoupon = async (
       runValidators: true,
     });
 
-    // // List of allowed fields that can be updated
-    // const updatableFields = [
-    //   "code",
-    //   "couponApplicableOn",
-    //   "couponType",
-    //   "discountType",
-    //   "discountValue",
-    //   "minOrderAmount",
-    //   "maxDiscountAmount",
-    //   "specificProducts",
-    //   "productCategories",
-    //   "minQuantity",
-    //   "maxQuantity",
-    //   "maxWordCount",
-    //   "usageLimitPerUser",
-    //   "totalUsageLimit",
-    //   "status",
-    //   "expiresAt",
-    // ];
-
-    // // Filter the update body to only include allowed fields
-    // const filteredUpdate: Record<string, any> = { updatedBy: userId };
-
-    // Object.keys(body).forEach((key) => {
-    //   if (updatableFields.includes(key)) {
-    //     filteredUpdate[key] = body[key];
-    //   }
-    // });
-
-    // // Verify at least one valid field is being updated
-    // if (Object.keys(filteredUpdate).length <= 1) {
-    //   // Only has updatedBy
-    //   throw new CustomError(400, "No valid fields provided for update");
-    // }
-
-    // // Find and update the coupon
-    // const updatedCoupon = await Coupon.findByIdAndUpdate(id, filteredUpdate, {
-    //   new: true,
-    //   runValidators: true,
-    //   context: "query",
-    // });
-
-    // if (!updatedCoupon) {
-    //   throw new CustomError(404, "Coupon not found");
-    // }
-
     res.status(200).json({
       success: true,
       message: "Coupon updated successfully",

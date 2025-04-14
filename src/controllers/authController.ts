@@ -25,16 +25,8 @@ const generateRefreshToken = (userId: string): string =>
 // ***************************************
 const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const {
-      image,
-      name,
-      email,
-      password,
-      role,
-      contact,
-      status,
-      googleId,
-    } = req.body;
+    const { image, name, email, password, role, contact, status, googleId } =
+      req.body;
 
     // Validate user input
     if (!validateInput(req, res)) return;
@@ -286,6 +278,7 @@ const resetPassword = async (
   try {
     const { userId } = req;
     const { currentPassword, newPassword, resetToken } = req.body;
+
     let user;
     if (userId) {
       // Logged-in user resetting password
@@ -301,7 +294,10 @@ const resetPassword = async (
 
       // Check if newPassword is the same as currentPassword
       if (await bcrypt.compare(newPassword, user.password)) {
-        throw new CustomError(400, "New password cannot be the same as the current password");
+        throw new CustomError(
+          400,
+          "New password cannot be the same as the current password"
+        );
       }
     } else if (resetToken) {
       // Reset via token
@@ -322,6 +318,7 @@ const resetPassword = async (
 
     res.status(200).json({ message: "Password reset successfully" });
   } catch (error) {
+    console.log(req.body);
     next(
       error instanceof CustomError
         ? error
