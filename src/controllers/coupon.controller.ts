@@ -4,6 +4,8 @@ import { CustomError } from "../middlewares/error";
 import { checkPermission } from "../helpers/authHelper";
 import { validateInput } from "../utils/validateInput";
 import { NextFunction, Request, Response } from "express";
+import Product from "../models/productModel";
+import ProductCategory from "../models/productCategoryModel";
 
 // Helper function to calculate discount
 export const calculateDiscount = (
@@ -323,6 +325,7 @@ export const calculateCouponDiscount = async (
         finalPrice: cartData.totalPrice,
         appliedTo: [],
         productDiscounts: {},
+        couponDetails: null,
       });
     }
 
@@ -342,27 +345,71 @@ export const calculateCouponDiscount = async (
       appliedTo = [],
     } = calculateDiscount(coupon, cartData);
 
-    // Build product discounts map
+    // Build product discounts map with proportional distribution
     const productDiscounts: Record<string, number> = {};
-    appliedTo.forEach((productId) => {
-      const product = cartData.products.find(
-        (p: any) => p.product._id.toString() === productId.toString()
-      );
-      if (product) {
-        productDiscounts[productId.toString()] =
+    const eligibleProducts = cartData.products.filter((p: any) =>
+      appliedTo.some((id: any) => id.toString() === p.product._id.toString())
+    );
+    const eligibleTotal = eligibleProducts.reduce(
+      (sum: number, p: any) => sum + p.totalPrice,
+      0
+    );
+
+    // If discount is capped, distribute it proportionally
+    if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
+      const cappedDiscount = coupon.maxDiscountAmount;
+      eligibleProducts.forEach((product: any) => {
+        const productShare = product.totalPrice / eligibleTotal; // Proportion of total price
+        productDiscounts[product.product._id.toString()] = Number(
+          (cappedDiscount * productShare).toFixed(2)
+        );
+      });
+    } else {
+      // Otherwise, use the original percentage-based discount
+      eligibleProducts.forEach((product: any) => {
+        productDiscounts[product.product._id.toString()] =
           coupon.discountType === "flat"
             ? coupon.discountValue
-            : (product.totalPrice * coupon.discountValue) / 100;
-      }
-    });
+            : Number(
+                ((product.totalPrice * coupon.discountValue) / 100).toFixed(2)
+              );
+      });
+    }
 
     res.status(200).json({
       message: "Coupon discount calculated successfully",
       originalTotal: cartData.totalPrice,
-      couponDiscount: discount,
+      couponDiscount: Math.min(discount, coupon.maxDiscountAmount || Infinity),
       finalPrice: discountedTotal,
-      appliedTo: appliedTo.map((id) => id.toString()),
+      appliedTo: appliedTo.map((id: any) => id.toString()),
       productDiscounts,
+      couponDetails: {
+        code: coupon.code,
+        couponApplicableOn: coupon.couponApplicableOn,
+        couponType: coupon.couponType,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        maxDiscountAmount:
+          coupon.maxDiscountAmount !== Infinity
+            ? coupon.maxDiscountAmount
+            : null,
+        minOrderAmount:
+          coupon.minOrderAmount !== 1 ? coupon.minOrderAmount : null,
+        minQuantity: coupon.minQuantity !== 1 ? coupon.minQuantity : null,
+        maxWordCount: coupon.maxWordCount,
+        specificProducts:
+          coupon.couponApplicableOn === "specificProducts"
+            ? await Product.find({
+                _id: { $in: coupon.specificProducts },
+              }).select("name")
+            : [],
+        productCategories:
+          coupon.couponApplicableOn === "productCategories"
+            ? await ProductCategory.find({
+                _id: { $in: coupon.productCategories },
+              }).select("name")
+            : [],
+      },
     });
   } catch (error) {
     next(

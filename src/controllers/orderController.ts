@@ -151,12 +151,24 @@ export const createOrder = async (
     const exchangeRate = await getExchangeRate(currency);
     const totalPriceUSD = cart.totalPrice;
 
-    // Apply coupon and calculate totals in USD
-    const { coupon, discountUSD, finalPriceUSD } = await applyCoupon(
-      couponCode,
-      cart,
-      userId
-    );
+    // With this:
+    let coupon = null;
+    let discountUSD = 0;
+    let finalPriceUSD = cart.totalPrice;
+
+    if (couponCode) {
+      const couponResult = await applyCoupon(couponCode, cart, userId);
+      coupon = couponResult.coupon;
+      discountUSD = couponResult.discountUSD;
+      finalPriceUSD = couponResult.finalPriceUSD;
+    }
+
+    // // Apply coupon and calculate totals in USD
+    // const { coupon, discountUSD, finalPriceUSD } = await applyCoupon(
+    //   couponCode,
+    //   cart,
+    //   userId
+    // );
     const orderNumber = generateOrderNumber();
 
     // Create order object (in USD)
