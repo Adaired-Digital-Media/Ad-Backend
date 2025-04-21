@@ -10,7 +10,9 @@ const errorHandler = (
     return res.status(err.statusCode).json({ message: err.message });
   }
 
-  return res.status(500).json({ message: "Internal server error!" });
+  return res
+    .status(500)
+    .json({ message: "Internal server error occurred :", err });
 };
 
 class CustomError extends Error {

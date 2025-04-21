@@ -12,7 +12,7 @@ import Role from "../models/roleModel";
 // Token generation utilities
 const generateAccessToken = (userId: string): string =>
   jwt.sign({ _id: userId }, process.env.JWT_SECRET as string, {
-    expiresIn: "7d",
+    expiresIn: "1d",
   });
 
 const generateRefreshToken = (userId: string): string =>
@@ -52,7 +52,6 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       email: email.toLowerCase(),
       userName: email.split("@")[0].toLowerCase(),
       ...(image && { image }),
-      ...(role && { role }),
       ...(hashedPassword && { password: hashedPassword }),
       ...(contact && { contact }),
       ...(status && { status }),
@@ -64,6 +63,26 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     if (userCount === 0) {
       user.isAdmin = true;
       user.role = null;
+    } else {
+      // Assign role: Use provided role or default to "Customer"
+      let assignedRoleId = role;
+      if (!role) {
+        const defaultRole = await Role.findOne({ name: "customer" }).lean();
+        if (!defaultRole) {
+          throw new CustomError(404, "Default Customer role not found");
+        }
+        assignedRoleId = defaultRole._id;
+      }
+
+      // Validate and assign role
+      const roleDoc = await Role.findById(assignedRoleId);
+      if (!roleDoc) {
+        throw new CustomError(404, "Role not found");
+      }
+      user.role = roleDoc._id;
+      roleDoc.users = roleDoc.users || [];
+      roleDoc.users.push(user._id);
+      await roleDoc.save();
     }
 
     // Create cart and assign in one operation
@@ -148,11 +167,17 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       .populate("role", "name permissions")
       .lean();
 
+    // Extract expiresAt from JWT
+    const decodedToken = jwt.decode(accessToken) as JwtPayload;
+    if (!decodedToken.exp) throw new Error("Token has no expiration");
+    const expiresAt = new Date(decodedToken.exp * 1000);
+
     res.status(200).json({
       message: "Login successful",
       accessToken,
       refreshToken,
       user: userData,
+      expiresAt: expiresAt,
     });
   } catch (error) {
     next(

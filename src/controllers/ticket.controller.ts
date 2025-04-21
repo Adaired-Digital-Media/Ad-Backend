@@ -21,14 +21,14 @@ const validateTicketPermissions = async (
 
   const userType = await getUserRoleType(userId);
   const isAdmin = userType === "admin";
+  const hasUpdatePermission = await checkPermission(userId, "tickets", 2);
   const isAssigned = ticket.assignedTo?.equals(userId);
   const isCustomer = ticket.customer.equals(userId);
-  const hasUpdatePermission = await checkPermission(userId, "tickets", 2);
 
   // Permission matrix
   const permissions = {
     update: isAdmin || hasUpdatePermission,
-    message: isAdmin || hasUpdatePermission || isAssigned,
+    message: isAdmin || hasUpdatePermission || isAssigned || isCustomer,
     close: isAdmin || hasUpdatePermission,
     delete: isAdmin || (await checkPermission(userId, "tickets", 3)),
   };
@@ -188,21 +188,25 @@ export const getTickets = async (
 ) => {
   try {
     const { userId } = req;
-    const { status, priority, assignedTo, customer, tickedId, page, limit } =
-      req.query;
+    const {
+      id,
+      status,
+      priority,
+      assignedTo,
+      customer,
+      ticketId,
+      page,
+      limit,
+    } = req.query;
 
-    // Check if user has permission to read tickets
-    let hasReadPermission = false;
-    try {
-      hasReadPermission = await checkPermission(userId, "tickets", 1);
-    } catch {
-      // If no permission, treat as customer
-      hasReadPermission = false;
-    }
-
+    // Permission check
+    const hasReadPermission = await checkPermission(userId, "tickets", 1).catch(
+      () => false
+    );
     const userType = await getUserRoleType(userId);
     const isAdmin = userType === "admin";
-    const filter: any = {};
+
+    const filter: Record<string, any> = {};
 
     // Customers and end support users can only see their own tickets or tickets assigned to them
     if (!hasReadPermission && !isAdmin) {
@@ -217,8 +221,14 @@ export const getTickets = async (
     if (priority) filter.priority = priority;
     if (assignedTo) filter.assignedTo = assignedTo;
     if (customer) filter.customer = customer;
-    if (tickedId) filter._id = tickedId;
+    if (ticketId) filter.ticketId = ticketId;
+    if (id) filter._id = id;
 
+    // Pagination
+    const skip = (Number(page) - 1) * Number(limit);
+    const limitNumber = Number(limit);
+
+    // Fetch data
     const [tickets, total] = await Promise.all([
       TicketModel.find(filter)
         .populate("createdBy", "image name email")
@@ -226,8 +236,8 @@ export const getTickets = async (
         .populate("customer", "image name email")
         .populate("messages.sender", "image name email")
         .sort({ createdAt: -1 })
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit)),
+        .skip(skip)
+        .limit(limitNumber),
       TicketModel.countDocuments(filter),
     ]);
 
@@ -242,7 +252,7 @@ export const getTickets = async (
       },
     });
   } catch (error: any) {
-    next(new CustomError(500, error.message));
+    next(new CustomError(500, error.message || "Failed to fetch tickets"));
   }
 };
 
@@ -272,9 +282,10 @@ export const getTicketStats = async (
 
     if (isAdmin || hasStatsPermission) {
       // Admin/Manager Stats
-      const [total, open, closed, assignedToMe] = await Promise.all([
+      const [total, open, resolved, closed, assignedToMe] = await Promise.all([
         TicketModel.countDocuments(),
         TicketModel.countDocuments({ status: TicketStatus.OPEN }),
+        TicketModel.countDocuments({ status: TicketStatus.RESOLVED }),
         TicketModel.countDocuments({ status: TicketStatus.CLOSED }),
         TicketModel.countDocuments({ assignedTo: userId }),
       ]);
@@ -282,6 +293,7 @@ export const getTicketStats = async (
       response.data = {
         totalTickets: total,
         openTickets: open,
+        resolvedTickets: resolved,
         closedTickets: closed,
         ticketsAssignedToMe: assignedToMe,
       };
@@ -318,7 +330,7 @@ export const getTicketStats = async (
         }),
         TicketModel.countDocuments({
           customer: userId,
-          status: TicketStatus.OPEN,
+          status: TicketStatus.CLOSED,
         }),
         TicketModel.countDocuments({
           customer: userId,
@@ -360,6 +372,8 @@ export const updateTicket = async (
     const { id } = req.query;
     const { message, status, priority, assignedTo } = body;
 
+    console.log(body, files);
+
     // Validate permissions based on action type
     const action =
       status === TicketStatus.CLOSED ? "close" : message ? "message" : "update";
@@ -399,13 +413,13 @@ export const updateTicket = async (
 
     // Handle message additions (allowed for assigned support even without update permission)
     if (message) {
-      // Use validator's returned values
-      if (!isAdmin && !hasUpdatePermission && !isAssigned && !isCustomer) {
-        throw new CustomError(
-          403,
-          "Only ticket participants can message this ticket"
-        );
-      }
+      // // Use validator's returned values
+      // if (!isAdmin && !hasUpdatePermission && !isAssigned && !isCustomer) {
+      //   throw new CustomError(
+      //     403,
+      //     "Only ticket participants can message this ticket"
+      //   );
+      // }
 
       const attachments =
         files && Array.isArray(files)

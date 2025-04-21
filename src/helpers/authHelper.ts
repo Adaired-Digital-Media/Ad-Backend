@@ -61,7 +61,7 @@ export const getUserRoleType = async (userId: string) => {
   if (!user) throw new CustomError(404, "User not found");
 
   if (user.isAdmin) return "admin";
-  if (user.role?.name === "customer") return "customer";
+  if (user.role?.name === "customer" || user.role === null) return "customer";
   return "support";
 };
 

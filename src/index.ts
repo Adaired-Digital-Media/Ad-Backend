@@ -1,9 +1,11 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
-import connectDB from "./database/connectDB";
+import { connectDB, closeDB } from "./database/connectDB";
 import { errorHandler } from "./middlewares/error";
+import { seedRoles } from "./scripts/seedRoles";
 import path from "path";
 import cors from "cors";
+import helmet from "helmet";
 
 // Routers Import
 import multerRoute from "./routes/multer.routes";
@@ -24,23 +26,12 @@ import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import { emptyCartJob } from "./cron-jobs/empty-cart";
-import mongoose from "mongoose";
-
-const app: Application = express();
-const PORT = process.env.PORT || 8080;
 
 dotenv.config();
 
-// Middleware for all other routes
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.originalUrl === "/api/v2/orders/stripe-webhook") {
-    // Skip JSON parsing for Stripe webhook
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
-});
-app.use(express.urlencoded({ extended: false }));
+const app: Application = express();
+const PORT = process.env.PORT || 8080;
+const basePath = "/api/v2";
 
 // CORS Middleware
 const allowedOrigins = [
@@ -56,27 +47,35 @@ const allowedOrigins = [
   "http://localhost:3004",
 ];
 
-const corsOptions = {
-  origin: (
-    origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void
-  ) => {
-    if (allowedOrigins.includes(origin as string) || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-};
+// ========================
+// 🛡️ Security Middleware
+// ========================
+app.use(helmet()); // Security headers
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || allowedOrigins,
+    credentials: true,
+    maxAge: 86400, // 24h CORS preflight cache
+  })
+);
 
-app.use(cors(corsOptions));
+// ========================
+// ⚡ Performance Optimizations
+// ========================
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl === "/api/v2/orders/stripe-webhook") {
+    // Skip JSON parsing for Stripe webhook
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
-const basePath = "/api/v2";
+app.use(express.urlencoded({ extended: false }));
 
 // Ping Endpoint (minimal response)
 app.get(`${basePath}/ping`, (req: Request, res: Response) => {
-  res.status(200).send("pong");
+  res.send("pong 🏓");
 });
 
 app.use(`${basePath}/multer`, multerRoute);
@@ -107,30 +106,59 @@ app.get(`${basePath}/`, (req: Request, res: Response) => {
   res.render("index");
 });
 
-// Error Handler
+// ========================
+// 🛑 Error Handling
+// ========================
 app.use(errorHandler);
 
-// Start Server
+// ========================
+// ⏱️ Startup & Shutdown
+// ========================
 const startServer = async () => {
   try {
+    console.log("🔧 Initializing MongoDB connection...");
+
+    // Connect to DB first
     await connectDB();
-    // Start cron job after DB is ready
-    emptyCartJob.start();
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+
+    // Seed roles during startup if enabled
+    if (process.env.SEED_ON_STARTUP === "true") {
+      await seedRoles();
+    }
+
+    // Start server
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
+
+    // Start background jobs
+    emptyCartJob.start();
+    console.log("⏱️ Cron jobs initialized");
+
+    return server;
   } catch (error) {
-    console.error("Failed to start server:", error);
+    console.error("🔥 Failed to start server:", error);
     process.exit(1);
   }
 };
 
-startServer();
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("\n🛑 Graceful shutdown initiated...");
 
-process.on("SIGINT", async () => {
-  emptyCartJob.stop();
-  console.log("Empty cart cron job stopped");
-  await mongoose.connection.close();
-  console.log("MongoDB connection closed");
-  process.exit(0);
-});
+  try {
+    emptyCartJob.stop();
+    await closeDB();
+    console.log("✅ Server shutdown complete");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Graceful shutdown failed:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", shutdown); // Ctrl+C
+process.on("SIGTERM", shutdown); // Kubernetes/Docker stop
+
+// Start the server
+startServer();
