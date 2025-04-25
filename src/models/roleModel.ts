@@ -31,6 +31,13 @@ const roleSchema = new Schema(
   }
 );
 
+roleSchema.pre('save', function(next) {
+  if (this.isModified('name')) {
+    this.name = this.name.toLowerCase();
+  }
+  next();
+});
+
 const Role = mongoose.model<RoleTypes & Document>("Role", roleSchema);
 
 export default Role;

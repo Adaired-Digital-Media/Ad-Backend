@@ -3,7 +3,7 @@ import User from "../models/userModel";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
-import {checkPermission} from "../helpers/authHelper";
+import { checkPermission } from "../helpers/authHelper";
 import { RoleTypes } from "../types/roleTypes";
 import mongoose from "mongoose";
 
@@ -14,6 +14,8 @@ const createRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, body } = req;
 
+    const { name } = body;
+
     if (!(await checkPermission(userId, "roles", 0)))
       throw new CustomError(403, "Permission denied");
 
@@ -21,7 +23,10 @@ const createRole = async (req: Request, res: Response, next: NextFunction) => {
     if (!validateInput(req, res)) return;
 
     // Create new role
-    const createdRole = await Role.create(body);
+    const createdRole = await Role.create({
+      name: name.toLowerCase(),
+      ...body,
+    });
     res.status(201).json({
       message: "Role created successfully",
       data: createdRole,
@@ -137,8 +142,8 @@ const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
     // Delete the role within the transaction
     const role = await Role.findByIdAndDelete(roleId, { session });
     if (!role) {
-      await session.abortTransaction(); 
-      throw new CustomError(404, "Role not found"); 
+      await session.abortTransaction();
+      throw new CustomError(404, "Role not found");
     }
 
     // Update users who had this role
@@ -161,7 +166,12 @@ const deleteRole = async (req: Request, res: Response, next: NextFunction) => {
   } catch (error: any) {
     // Only abort transaction here if it hasn’t been committed
     await session.abortTransaction();
-    next(new CustomError(error.statusCode || 500, error.message || "Internal Server Error"));
+    next(
+      new CustomError(
+        error.statusCode || 500,
+        error.message || "Internal Server Error"
+      )
+    );
   } finally {
     session.endSession();
   }

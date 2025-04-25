@@ -15,6 +15,7 @@ const TicketMessageSchema = new Schema(
     sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
     message: { type: String, required: true },
     attachments: [TicketAttachmentSchema],
+    readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );

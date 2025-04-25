@@ -60,7 +60,7 @@ export const createTicket = async (
     if (!validateInput(req, res)) return;
 
     const { userId, body, files } = req;
-    const { subject, description, priority, customer, assignedTo } = body;
+    const { subject,status, description, priority, customer, assignedTo } = body;
 
     const user = await User.findById(userId).populate("role");
     if (!user) throw new CustomError(404, "User not found");
@@ -141,6 +141,7 @@ export const createTicket = async (
     const newTicket = await TicketModel.create({
       subject,
       description,
+      status: status ||TicketStatus.OPEN,
       priority: priority || TicketPriority.MEDIUM,
       createdBy: userId,
       assignedTo: finalAssignedTo,
@@ -413,13 +414,13 @@ export const updateTicket = async (
 
     // Handle message additions (allowed for assigned support even without update permission)
     if (message) {
-      // // Use validator's returned values
-      // if (!isAdmin && !hasUpdatePermission && !isAssigned && !isCustomer) {
-      //   throw new CustomError(
-      //     403,
-      //     "Only ticket participants can message this ticket"
-      //   );
-      // }
+      // Use validator's returned values
+      if (!isAdmin && !hasUpdatePermission && !isAssigned && !isCustomer) {
+        throw new CustomError(
+          403,
+          "Only ticket participants can message this ticket"
+        );
+      }
 
       const attachments =
         files && Array.isArray(files)

@@ -14,6 +14,7 @@ export interface TicketMessage {
   sender: Types.ObjectId;
   message: string;
   attachments: TicketAttachment[];
+  readBy: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +51,7 @@ export interface Ticket {
   assignedTo?: Types.ObjectId;
   customer?: Types.ObjectId;
   messages: TicketMessage[];
+  participants?: Types.ObjectId[];
   metadata: TicketMetadata;
   createdAt: Date;
   updatedAt: Date;
