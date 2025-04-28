@@ -287,6 +287,7 @@ export const createCoupon = async (
 
     await newCoupon.save();
     res.status(201).json({
+      success: true,
       message: "Coupon created successfully",
       data: newCoupon,
     });
@@ -377,6 +378,7 @@ export const calculateCouponDiscount = async (
     }
 
     res.status(200).json({
+      success: true,
       message: "Coupon discount calculated successfully",
       originalTotal: cartData.totalPrice,
       couponDiscount: Math.min(discount, coupon.maxDiscountAmount || Infinity),
@@ -531,6 +533,7 @@ export const getCoupons = async (
       .populate("updatedBy", "_id name image email");
 
     res.status(200).json({
+      success: true,
       message: "Coupons fetched successfully",
       data: coupons,
       count: coupons.length,
@@ -564,6 +567,7 @@ export const deleteCoupon = async (
     }
 
     res.status(200).json({
+      success: true,
       message: "Coupon deleted successfully",
       data: coupon,
     });
@@ -619,6 +623,7 @@ export const getCouponStats = async (
     res.status(200).json({
       message: "Coupon stats fetched successfully",
       data: {
+        success: true,
         stats: stats[0] || {},
         popularCoupons,
       },

@@ -74,15 +74,15 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
         assignedRoleId = defaultRole._id;
       }
 
-      // Validate and assign role
-      const roleDoc = await Role.findById(assignedRoleId);
-      if (!roleDoc) {
-        throw new CustomError(404, "Role not found");
+      if (role && userCount !== 0) {
+        const roleDoc = await Role.findById(assignedRoleId);
+        if (!roleDoc) {
+          throw new CustomError(404, "Role not found");
+        }
+        user.role = roleDoc._id;
+        roleDoc.users.push(user._id);
+        await roleDoc.save();
       }
-      user.role = roleDoc._id;
-      roleDoc.users = roleDoc.users || [];
-      roleDoc.users.push(user._id);
-      await roleDoc.save();
     }
 
     // Create cart and assign in one operation
@@ -98,16 +98,6 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     const accessToken = generateAccessToken(user._id.toString());
     const refreshToken = generateRefreshToken(user._id.toString());
     user.refreshToken = refreshToken;
-
-    if (role && userCount !== 0) {
-      const roleDoc = await Role.findById(role);
-      if (!roleDoc) {
-        throw new CustomError(404, "Role not found");
-      }
-      roleDoc.users = roleDoc.users || [];
-      roleDoc.users.push(user._id);
-      await roleDoc.save();
-    }
 
     // Save user and cart in parallel
     await Promise.all([user.save(), cart.save()]);
