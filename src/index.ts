@@ -19,7 +19,7 @@ import caseStudyRoute from "./routes/casestudy.routes";
 import caseStudyCategoryRoute from "./routes/casestudyCategory.routes";
 import serviceRoute from "./routes/service.routes";
 import productRoute from "./routes/product.routes";
-import productFormRoute from "./routes/productForm.routes";
+import productFormRoute from "./routes/form.routes";
 import productCategoryRoute from "./routes/productCategory.routes";
 import cartRoute from "./routes/cart.routes";
 import orderRoute from "./routes/order.routes";
