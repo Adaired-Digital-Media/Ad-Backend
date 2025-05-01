@@ -1,0 +1,29 @@
+name: CI/CD to cPanel for Preview
+on:
+  push:
+    branches: [ preview ]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Install Dependencies
+        run: npm install
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Build TypeScript Project
+        run: pnpm run build
+      - name: Deploy to cPanel
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
+          CPANEL_SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+        run: |
+          echo "$CPANEL_SSH_KEY" > key
+          chmod 600 key
+          ssh -i key $CPANEL_USERNAME@$CPANEL_HOST "cd /home/repositories/Ad-Backend && git fetch origin preview && git checkout preview && git pull origin preview"
+          scp -i key -r build $CPANEL_USERNAME@$CPANEL_HOST:/home/repositories/Ad-Backend
