@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import PermissionModule from "../models/permissionModules.model";
-import {checkPermission} from "../helpers/authHelper";
+import { checkPermission } from "../helpers/authHelper";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
 
@@ -38,8 +38,6 @@ const findModules = async (req: Request, res: Response, next: NextFunction) => {
     const { userId } = req;
     const { identifier } = req.query;
 
-    if (!(await checkPermission(userId, "permissionmodules", 1)))
-      throw new CustomError(403, "Permission denied");
     let modules;
     if (identifier) {
       const idString = identifier.toString();

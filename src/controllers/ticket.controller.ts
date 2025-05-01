@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import TicketModel from "../models/ticket.model";
 import { CustomError } from "../middlewares/error";
 import {
+  
+
   uploadTicketAttachments,
   deleteTicketAttachments,
 } from "../utils/cloudinary";
@@ -278,7 +280,12 @@ export const getTicketStats = async (
     // Common base for all responses
     const response: any = {
       success: true,
-      data: {},
+      data: {
+        role: userType,
+        stats: {
+          // Will be populated below
+        }
+      },
     };
 
     if (isAdmin || hasStatsPermission) {
@@ -291,12 +298,12 @@ export const getTicketStats = async (
         TicketModel.countDocuments({ assignedTo: userId }),
       ]);
 
-      response.data = {
-        totalTickets: total,
-        openTickets: open,
-        resolvedTickets: resolved,
-        closedTickets: closed,
-        ticketsAssignedToMe: assignedToMe,
+      response.data.stats = {
+        total,
+        open,
+        closed,
+        resolved,
+        assignedToMe,
       };
     } else if (isSupport) {
       // Support Agent Stats
@@ -315,11 +322,11 @@ export const getTicketStats = async (
       const efficiency =
         assigned > 0 ? Math.round((delivered / assigned) * 100) : 0;
 
-      response.data = {
-        totalAssignedToMe: assigned,
-        pendingTickets: pending,
-        deliveredTickets: delivered,
-        myEfficiency: efficiency,
+      response.data.stats = {
+        total: assigned,
+        open: pending,
+        closed: delivered,
+        efficiency,
       };
     } else if (isCustomer) {
       // Customer Stats
@@ -339,11 +346,11 @@ export const getTicketStats = async (
         }),
       ]);
 
-      response.data = {
-        totalTicketsRaised: total,
-        openTickets: open,
-        closedTickets: closed,
-        reopenedTickets: reopened,
+      response.data.stats = {
+        total,
+        open,
+        closed,
+        reopened,
       };
     } else {
       throw new CustomError(
@@ -357,7 +364,6 @@ export const getTicketStats = async (
     next(new CustomError(500, error.message));
   }
 };
-
 // *********************************************************
 // ********************* Update Ticket *********************
 // *********************************************************
@@ -422,6 +428,7 @@ export const updateTicket = async (
         );
       }
 
+      console.log(hasUpdatePermission)
       const attachments =
         files && Array.isArray(files)
           ? await uploadTicketAttachments(files)

@@ -47,18 +47,38 @@ export interface CategoryTypes {
   updatedAt?: Date;
 }
 
-export interface FormField {
+export interface Option {
+  value: string;
   name: string;
-  label: string;
-  placeholder: string;
-  type: "text" | "number" | "textarea" | "checkbox" | "radio" | "select";
-  options?: { label: string; value: string }[];
-  required: boolean;
 }
 
-export interface Form extends Document {
+export interface Field {
+  name: string;
+  label: string;
+  inputType: string;
+  inputMinLength?: number | null;
+  inputMaxLength?: number | null;
+  inputPlaceholder?: string | null;
+  inputValidationPattern?: string | null;
+  inputRequired: boolean;
+  customClassName?: string | null;
+  multipleOptions?: Option[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface FormField {
+  field: Types.ObjectId;
+  fieldOrder: number;
+}
+
+export interface Form {
   productType: string;
+  title: string;
   fields: FormField[];
+  status: "Active" | "Inactive";
   createdBy: Types.ObjectId;
-  updatedBy: Types.ObjectId;
+  updatedBy?: Types.ObjectId | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
