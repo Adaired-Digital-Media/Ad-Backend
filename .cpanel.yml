@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/repositories/Ad-Backend
+    - /bin/bash -c "cd $DEPLOYPATH && git fetch origin preview"
+    - /bin/bash -c "cd $DEPLOYPATH && git checkout preview"
+    - /bin/bash -c "cd $DEPLOYPATH && git pull origin preview"
+    - /bin/bash -c "source /home/repositories/Ad-Backend/nodevenv/14/bin/activate && npm install"
+    - /bin/bash -c "source /home/repositories/Ad-Backend/nodevenv/14/bin/activate && pm2 restart backend_v2"
