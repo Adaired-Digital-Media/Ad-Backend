@@ -19,13 +19,14 @@ import { Types } from "mongoose";
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-11-20.acacia",
-  
 });
 
 // Get currency based on IP
 const getCurrencyFromRegion = async (ip: string): Promise<string> => {
   try {
-    const response = await axios.get(`https://ipinfo.io/${ip}/json`);
+    const response = await axios.get(
+      `https://ipinfo.io/${ip}/json?token=${"c92198516af5bb"}`
+    );
     return response.data.country === "IN" ? "inr" : "usd";
   } catch (error) {
     if (error instanceof Error) {
