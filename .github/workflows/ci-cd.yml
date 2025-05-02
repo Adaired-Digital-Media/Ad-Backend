@@ -27,4 +27,3 @@ jobs:
           chmod 600 key
           ssh -i key $CPANEL_USERNAME@$CPANEL_HOST "cd /home/repositories/Ad-Backend && git fetch origin preview && git checkout preview && git pull origin preview"
           scp -i key -r build $CPANEL_USERNAME@$CPANEL_HOST:/home/repositories/Ad-Backend
-
