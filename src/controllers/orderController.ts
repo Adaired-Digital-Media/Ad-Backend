@@ -17,11 +17,9 @@ import { OrderStatsResponse, RawChartDataItem } from "../types/orderTypes";
 import { Types } from "mongoose";
 
 // Initialize Stripe
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-//   apiVersion: "2025-02-24.acacia",
-
-// });
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-11-20.acacia",
+});
 
 // Get currency based on IP
 const getCurrencyFromRegion = async (ip: string): Promise<string> => {
