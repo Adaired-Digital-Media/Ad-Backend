@@ -26,7 +26,7 @@ const OrderSchema = new Schema<OrderTypes>(
     finalPrice: { type: Number, required: true },
     couponId: { type: Schema.Types.ObjectId, ref: "Coupon", default: null },
     paymentId: { type: String, default: null },
-    invoiceId: { type: String, required: true },
+    invoiceId: { type: String },
     zohoInvoiceId: { type: String },
     paymentUrl: { type: String, default: null },
     status: {

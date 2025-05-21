@@ -25,6 +25,7 @@ import cartRoute from "./routes/cart.routes";
 import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
 import ticketRoutes from "./routes/ticket.routes";
+import invoiceRoutes from "./routes/invoices.routes";
 import { emptyCartJob } from "./cron-jobs/empty-cart";
 
 dotenv.config();
@@ -95,6 +96,7 @@ app.use(`${basePath}/cart`, cartRoute);
 app.use(`${basePath}/orders`, orderRoute);
 app.use(`${basePath}/coupons`, couponRoute);
 app.use(`${basePath}/tickets`, ticketRoutes);
+app.use(`${basePath}/invoices`, invoiceRoutes);
 
 // Static files and View Engine
 app.use("/static", express.static(path.join(__dirname + "static")));

@@ -13,8 +13,12 @@ import {
   sendOrderConfirmationEmail,
   sendPaymentConfirmationEmail,
 } from "../utils/mailer";
-import { OrderStatsResponse, RawChartDataItem } from "../types/orderTypes";
 import { Types } from "mongoose";
+import {
+  createInvoice,
+  updateInvoicePaymentStatus,
+  deleteInvoiceByOrderId,
+} from "./invoice.controller";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -25,7 +29,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const getCurrencyFromRegion = async (ip: string): Promise<string> => {
   try {
     const response = await axios.get(
-      `https://ipinfo.io/${ip}/json?token=${"c92198516af5bb"}`
+      `https://ipinfo.io/${ip}/json?token=${process.env.IPINFO_TOKEN}`
     );
     return response.data.country === "IN" ? "inr" : "usd";
   } catch (error) {
@@ -139,9 +143,7 @@ export const createOrder = async (
     const { couponCode, paymentMethod, ip } = req.body;
 
     if (!userId) {
-      return next(
-        new CustomError(401, "User must be logged in to create an order")
-      );
+      return next(new CustomError(401, "User must be logged in to create an order"));
     }
 
     const cart = await Cart.findOne({ userId }).populate("products.product");
@@ -153,7 +155,6 @@ export const createOrder = async (
     const exchangeRate = await getExchangeRate(currency);
     const totalPriceUSD = cart.totalPrice;
 
-    // With this:
     let coupon = null;
     let discountUSD = 0;
     let finalPriceUSD = cart.totalPrice;
@@ -165,15 +166,8 @@ export const createOrder = async (
       finalPriceUSD = couponResult.finalPriceUSD;
     }
 
-    // // Apply coupon and calculate totals in USD
-    // const { coupon, discountUSD, finalPriceUSD } = await applyCoupon(
-    //   couponCode,
-    //   cart,
-    //   userId
-    // );
     const orderNumber = generateOrderNumber();
 
-    // Create order object (in USD)
     const orderData = {
       orderNumber,
       userId,
@@ -183,74 +177,63 @@ export const createOrder = async (
       couponDiscount: discountUSD,
       finalPrice: finalPriceUSD,
       couponId: coupon?._id || null,
-      invoiceId: "Invoice_" + Date.now(),
+      invoiceId: "",
       paymentMethod,
     };
 
-    // Handle free order (finalPriceUSD = 0)
+    let newOrder;
     if (finalPriceUSD === 0) {
-      const newOrder = new Order({
+      newOrder = new Order({
         ...orderData,
         paymentId: null,
         paymentUrl: null,
         paymentStatus: "Paid",
       });
-
       await newOrder.save();
-      await cart.updateOne({ products: [], totalPrice: 0, totalQuantity: 0 });
-
-      // Send emails asynchronously
-      Promise.all([
-        sendOrderConfirmationEmail(newOrder._id.toString()),
-        sendAdminNewOrderEmail(newOrder._id.toString()),
-      ]).catch((err) => console.error("Email sending failed:", err));
-
-      return res.status(200).json({
-        message: "Order created successfully",
-        data: newOrder,
-        redirectUrl: `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`,
+      console.log(`Free order created: ${newOrder._id}`);
+    } else {
+      const session = await createStripeSession(
+        cart,
+        orderNumber,
+        currency,
+        exchangeRate,
+        coupon,
+        discountUSD,
+        userId
+      );
+      newOrder = new Order({
+        ...orderData,
+        paymentId: session.id,
+        paymentUrl: session.url,
+        status: "Pending",
+        paymentStatus: "Unpaid",
       });
+      await newOrder.save();
     }
 
-    // Create Stripe session (in local currency)
-    const session = await createStripeSession(
-      cart,
-      orderNumber,
-      currency,
-      exchangeRate,
-      coupon,
-      discountUSD,
-      userId
-    );
+    // Create invoice for both free and paid orders
+    await createInvoice(newOrder._id.toString(), paymentMethod);
 
-    const newOrder = new Order({
-      ...orderData,
-      paymentId: session.id,
-      paymentUrl: session.url,
-      status: "Pending",
-      paymentStatus: "Unpaid",
-    });
-
-    await newOrder.save();
     await cart.updateOne({ products: [], totalPrice: 0, totalQuantity: 0 });
 
-    // Send emails asynchronously
     Promise.all([
       sendOrderConfirmationEmail(newOrder._id.toString()),
       sendAdminNewOrderEmail(newOrder._id.toString()),
     ]).catch((err) => console.error("Email sending failed:", err));
 
-    res.status(201).json({
+    const response = {
       message: "Order created successfully.",
       data: newOrder,
-      sessionId: session.id,
-    });
+      redirectUrl: finalPriceUSD === 0
+        ? `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
+        : undefined,
+      sessionId: finalPriceUSD !== 0 ? newOrder.paymentId : undefined,
+    };
+
+    res.status(201).json(response);
   } catch (error) {
-    if (error instanceof Error) {
-      next(new CustomError(500, error.message));
-    } else {
-      next(new CustomError(500, "An unknown error occurred."));
-    }
+    console.error(`Error in createOrder:`, error);
+    next(new CustomError(500, error instanceof Error ? error.message : "An unknown error occurred."));
   }
 };
 
@@ -293,6 +276,9 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           { new: true }
         );
         if (updatedOrder) {
+          // Update invoice payment status
+          await updateInvoicePaymentStatus(updatedOrder._id.toString(), "Paid");
+
           // Record coupon usage after successful payment
           if (session.metadata.couponId) {
             await recordCouponUsage(
@@ -312,46 +298,49 @@ export const stripeWebhook = async (req: Request, res: Response) => {
 
     case "checkout.session.expired":
       const expiredSession = event.data.object as Stripe.Checkout.Session;
-      await Order.findOneAndUpdate(
+      const updatedOrder = await Order.findOneAndUpdate(
         { paymentId: expiredSession.id },
         { paymentStatus: "Unpaid" },
         { new: true }
       );
+      if (updatedOrder) {
+        await updateInvoicePaymentStatus(updatedOrder._id.toString(), "Unpaid");
 
-      // Create a new checkout session if expired
-      const cart = await Cart.findOne({
-        userId: expiredSession.metadata.userId,
-      });
-      if (cart && cart.products.length > 0) {
-        const newSession = await stripe.checkout.sessions.create({
-          payment_method_types: ["card"],
-          line_items: cart.products.map((product) => ({
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: product.product.name,
-              },
-              unit_amount: Math.round(product.totalPrice * 100),
-            },
-            quantity: product.quantity,
-          })),
-          mode: "payment",
-          success_url: expiredSession.success_url,
-          cancel_url: expiredSession.cancel_url,
-          metadata: {
-            userId: expiredSession.metadata.userId,
-            couponId: expiredSession.metadata.couponId,
-          },
+        // Create a new checkout session if expired
+        const cart = await Cart.findOne({
+          userId: expiredSession.metadata.userId,
         });
+        if (cart && cart.products.length > 0) {
+          const newSession = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            line_items: cart.products.map((product: any) => ({
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: product.product.name,
+                },
+                unit_amount: Math.round(product.totalPrice * 100),
+              },
+              quantity: product.quantity,
+            })),
+            mode: "payment",
+            success_url: expiredSession.success_url,
+            cancel_url: expiredSession.cancel_url,
+            metadata: {
+              userId: expiredSession.metadata.userId,
+              couponId: expiredSession.metadata.couponId,
+            },
+          });
 
-        await Order.findOneAndUpdate(
-          { paymentId: expiredSession.id },
-          {
-            paymentUrl: newSession.url,
-            paymentId: newSession.id,
-          },
-          { new: true }
-        );
+          await Order.findOneAndUpdate(
+            { paymentId: expiredSession.id },
+            {
+              paymentUrl: newSession.url,
+              paymentId: newSession.id,
+            },
+            { new: true }
+          );
+        }
       }
       break;
 
@@ -486,7 +475,12 @@ export const deleteOrder = async (
       return res.status(404).json({ message: "Order not found." });
     }
 
-    res.status(200).json({ message: "Order deleted successfully." });
+    // Delete associated invoice
+    await deleteInvoiceByOrderId(orderId.toString());
+
+    res
+      .status(200)
+      .json({ message: "Order and associated invoice deleted successfully." });
   } catch (error) {
     if (error instanceof Error) {
       next(new CustomError(500, error.message));
