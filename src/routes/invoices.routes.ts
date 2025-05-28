@@ -6,6 +6,7 @@ import {
   deleteInvoice,
   getInvoicesByUserId,
   getInvoiceStats,
+  downloadInvoicePDF,
 } from "../controllers/invoice.controller";
 
 const router: Router = express.Router();
@@ -15,6 +16,7 @@ router.get("/getInvoices", verifyToken, getInvoices);
 router.patch("/updateInvoice", verifyToken, updateInvoice); 
 router.delete("/deleteInvoice", verifyToken, deleteInvoice); 
 router.get("/stats", verifyToken, getInvoiceStats); 
+router.get("/download", downloadInvoicePDF);
 
 // User routes
 router.get("/getUserInvoices", verifyToken, getInvoicesByUserId); 
