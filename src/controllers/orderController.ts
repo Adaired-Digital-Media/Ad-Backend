@@ -143,7 +143,9 @@ export const createOrder = async (
     const { couponCode, paymentMethod, ip } = req.body;
 
     if (!userId) {
-      return next(new CustomError(401, "User must be logged in to create an order"));
+      return next(
+        new CustomError(401, "User must be logged in to create an order")
+      );
     }
 
     const cart = await Cart.findOne({ userId }).populate("products.product");
@@ -224,16 +226,22 @@ export const createOrder = async (
     const response = {
       message: "Order created successfully.",
       data: newOrder,
-      redirectUrl: finalPriceUSD === 0
-        ? `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
-        : undefined,
+      redirectUrl:
+        finalPriceUSD === 0
+          ? `${BASE_DOMAIN}/expert-content-solutions/order/order-confirmation/${orderNumber}`
+          : undefined,
       sessionId: finalPriceUSD !== 0 ? newOrder.paymentId : undefined,
     };
 
     res.status(201).json(response);
   } catch (error) {
     console.error(`Error in createOrder:`, error);
-    next(new CustomError(500, error instanceof Error ? error.message : "An unknown error occurred."));
+    next(
+      new CustomError(
+        500,
+        error instanceof Error ? error.message : "An unknown error occurred."
+      )
+    );
   }
 };
 
@@ -430,6 +438,14 @@ export const updateOrder = async (
     const permissionCheck = await checkPermission(userId, "orders", 3);
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
+    }
+
+    if (updateData.paymentStatus) {
+      // Update invoice payment status
+      await updateInvoicePaymentStatus(
+        orderId.toString(),
+        updateData.paymentStatus
+      );
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, {
