@@ -9,7 +9,7 @@ import {
   resetPassword,
   sendVerificationEmail,
   verifyUser,
-} from "../controllers/authController";
+} from "../controllers/auth.controller";
 import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 

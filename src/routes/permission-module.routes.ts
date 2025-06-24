@@ -8,7 +8,7 @@ import {
   findModules,
   updateModule,
   deleteModule,
-} from "../controllers/permissionModule.controller";
+} from "../controllers/permission-module.controller";
 import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
@@ -18,13 +18,13 @@ router.post(
   validatePermissionModuleCreate,
   createModule
 );
-router.get("/find", verifyToken, findModules);
+router.get("/find", findModules);
 router.patch(
   "/update",
   verifyToken,
   validatePermissionModuleUpdate,
   updateModule
 );
-router.delete("/delete", verifyToken, deleteModule);
+router.delete("/delete", verifyToken, deleteModule);  
 
 export default router;

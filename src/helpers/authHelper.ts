@@ -1,6 +1,6 @@
 import { CustomError } from "../middlewares/error";
-import User from "../models/userModel";
-import Role from "../models/roleModel";
+import User from "../models/user.model";
+import Role from "../models/role.model";
 import { Types } from "mongoose";
 import { RoleTypes } from "../types/roleTypes";
 

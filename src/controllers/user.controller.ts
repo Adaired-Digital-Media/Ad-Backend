@@ -1,11 +1,11 @@
-import User from "../models/userModel";
+import User from "../models/user.model";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
 import {checkPermission} from "../helpers/authHelper";
 import Cart from "../models/cartModel";
 import mongoose from "mongoose";
-import Role from "../models/roleModel";
+import Role from "../models/role.model";
 
 // ***************************************
 // ************ Find User ****************

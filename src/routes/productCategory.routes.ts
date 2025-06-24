@@ -5,7 +5,7 @@ import {
   duplicateCategory,
   readCategories,
   updateCategory,
-} from "../controllers/productCategoryController";
+} from "../controllers/product-category.controller";
 import verifyToken from "../middlewares/authMiddleware";
 import {
   validateProductCreateCategory,

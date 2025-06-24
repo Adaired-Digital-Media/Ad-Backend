@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { UserTypes } from "../types/userTypes";
+import { UserTypes } from "../types/user.types";
 
 const UserSchema = new Schema<UserTypes>(
   {
@@ -30,9 +30,10 @@ const UserSchema = new Schema<UserTypes>(
       unique: true,
       sparse: true,
     },
-    orderHistory: [
-      { orderId: { type: Schema.Types.ObjectId, ref: "Order", default: null } },
-    ],
+    orderHistory: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Order" }],
+      default: [],
+    },
     cart: {
       type: Schema.Types.ObjectId,
       ref: "Cart",

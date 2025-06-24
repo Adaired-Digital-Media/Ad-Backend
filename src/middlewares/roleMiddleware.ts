@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "./error";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import User from "../models/userModel";
+import User from "../models/user.model";
 import { RoleTypes } from "../types/roleTypes";
 
 const verifyRoleAndPermission = async (

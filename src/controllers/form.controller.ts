@@ -16,7 +16,7 @@ export const createForm = async (
     let { title, fields } = body;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "productforms", 0);
+    const permissionCheck = await checkPermission(userId, "custom-forms", 0);
     if (!permissionCheck) {
       throw new CustomError(403, "Unauthorized");
     }
@@ -101,7 +101,7 @@ export const updateForm = async (
     const { formId } = query as { formId?: string };
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "productforms", 2);
+    const permissionCheck = await checkPermission(userId, "custom-forms", 2);
     if (!permissionCheck) {
       throw new CustomError(403, "Unauthorized");
     }
@@ -170,7 +170,7 @@ export const deleteForm = async (
     const { formIds } = body;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "productforms", 3);
+    const permissionCheck = await checkPermission(userId, "custom-forms", 3);
     if (!permissionCheck) {
       throw new CustomError(403, "Unauthorized");
     }

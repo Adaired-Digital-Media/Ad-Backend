@@ -9,7 +9,7 @@ import {
 } from "../utils/cloudinary";
 import { TicketStatus, TicketPriority } from "../types/ticket.types";
 import { checkPermission, getUserRoleType } from "../helpers/authHelper";
-import User from "../models/userModel";
+import User from "../models/user.model";
 import { validateInput } from "../utils/validateInput";
 
 // Shared permission validator

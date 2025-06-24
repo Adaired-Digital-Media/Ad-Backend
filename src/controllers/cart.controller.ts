@@ -3,7 +3,7 @@ import Product from "../models/productModel";
 import Order from "../models/orderModel";
 import {checkPermission} from "../helpers/authHelper";
 import { NextFunction, Request, Response } from "express";
-import User from "../models/userModel";
+import User from "../models/user.model";
 import { CustomError } from "../middlewares/error";
 import { Types } from "mongoose";
 import { CartProduct } from "../types/cartTypes";

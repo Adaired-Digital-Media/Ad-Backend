@@ -1,40 +1,24 @@
 import mongoose, { Schema } from "mongoose";
-import { BlogTypes } from "../types/blogTypes";
+import { BlogTypes } from "../types/blog.types";
+import seoSchema from "./seo-schema.model";
 
-const blogSchema = new Schema(
+const blogSchema = new Schema<BlogTypes>(
   {
-    metaTitle: {
-      type: String,
-      required: true,
-    },
-    metaDescription: {
-      type: String,
-      required: true,
-    },
-    canonicalLink: {
-      type: String,
-      required: true,
-    },
-    openGraphImage: {
-      type: String,
-      default: null,
-    },
-    robotsText: {
-      type: String,
-      required: true,
-    },
     category: {
       type: Schema.Types.ObjectId,
-      ref: "BlogCategory",
+      ref: "Blog_Category",
       default: null,
+      index: true,
     },
     featuredImage: {
       type: String,
       required: true,
+      trim: true,
     },
     postTitle: {
       type: String,
       required: true,
+      trim: true,
     },
     postDescription: {
       type: String,
@@ -42,14 +26,26 @@ const blogSchema = new Schema(
     },
     slug: {
       type: String,
-      default: null,
+      required: true,
+      unique: true,
+      trim: true,
     },
     tags: {
-      type: String,
-      default: null,
+      type: [String],
+      default: [],
+      index: true,
+    },
+    seo: {
+      type: seoSchema,
+      required: [true, "SEO data is required"],
     },
     blogAuthor: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
@@ -57,10 +53,12 @@ const blogSchema = new Schema(
       type: String,
       enum: ["publish", "draft"],
       default: "draft",
+      index: true,
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
   }
 );
 

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import { OrderTypes } from "../types/orderTypes";
 
 // Create the Order schema
@@ -53,13 +53,9 @@ const OrderSchema = new Schema<OrderTypes>(
 
 OrderSchema.index({ orderNumber: 1 }, { unique: true });
 OrderSchema.index({ userId: 1 });
-OrderSchema.index({ status: 1 });
-OrderSchema.index({ paymentStatus: 1 });
 OrderSchema.index({ paymentId: 1 });
 OrderSchema.index({ invoiceId: 1 });
 OrderSchema.index({ zohoInvoiceId: 1 });
-OrderSchema.index({ paymentMethod: 1 });
-OrderSchema.index({ createdAt: 1 });
 
 const Order = mongoose.model<OrderTypes>("Order", OrderSchema);
 
