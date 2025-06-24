@@ -5,7 +5,7 @@ import {
   updateUser,
   killUser,
   getCurrentUser,
-} from "../controllers/userController";
+} from "../controllers/user.controller";
 import verifyToken from "../middlewares/authMiddleware";
 
 router.get("/find", verifyToken, findUser);

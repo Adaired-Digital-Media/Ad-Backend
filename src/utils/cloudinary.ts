@@ -317,9 +317,11 @@ export const fetchImagesInFolder = async (
     } while (nextCursor);
 
     return resources;
-  } catch (error) {
-    console.error("Error fetching images from Cloudinary:", error);
-    throw new CustomError(500, "Failed to fetch images from Cloudinary");
+  } catch (error: any) {
+    throw new CustomError(
+      error?.error?.http_code,
+      error.error.message || "Failed to fetch images from Cloudinary"
+    );
   }
 };
 

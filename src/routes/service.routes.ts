@@ -5,7 +5,7 @@ import {
   readServices,
   updateService,
   duplicateService
-} from "../controllers/serviceController";
+} from "../controllers/service.controller";
 import verifyToken from "../middlewares/authMiddleware";
 import {
   ValidateCreateService,

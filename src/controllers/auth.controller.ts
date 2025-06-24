@@ -1,5 +1,5 @@
 import { BASE_DOMAIN } from "../utils/globals";
-import User from "../models/userModel";
+import User from "../models/user.model";
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { JwtPayload } from "jsonwebtoken";
@@ -7,7 +7,7 @@ import { CustomError } from "../middlewares/error";
 import Cart from "../models/cartModel";
 import { sendEmail } from "../utils/mailer";
 import { validateInput } from "../utils/validateInput";
-import Role from "../models/roleModel";
+import Role from "../models/role.model";
 
 // Token generation utilities
 const generateAccessToken = (userId: string): string =>
@@ -60,6 +60,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 
     // Set admin status for first user
     const userCount = await User.countDocuments();
+
     if (userCount === 0) {
       user.isAdmin = true;
       user.role = null;
@@ -74,15 +75,13 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
         assignedRoleId = defaultRole._id;
       }
 
-      if (role && userCount !== 0) {
-        const roleDoc = await Role.findById(assignedRoleId);
-        if (!roleDoc) {
-          throw new CustomError(404, "Role not found");
-        }
-        user.role = roleDoc._id;
-        roleDoc.users.push(user._id);
-        await roleDoc.save();
+      const roleDoc = await Role.findById(assignedRoleId);
+      if (!roleDoc) {
+        throw new CustomError(404, "Role not found");
       }
+      user.role = roleDoc._id;
+      roleDoc.users.push(user._id);
+      await roleDoc.save();
     }
 
     // Create cart and assign in one operation

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import PermissionModule from "../models/permissionModules.model";
+import Permission_Module from "../models/permission-modules.model";
 import { checkPermission } from "../helpers/authHelper";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
@@ -15,12 +15,12 @@ const createModule = async (
   try {
     const { userId, body } = req;
 
-    if (!(await checkPermission(userId, "permissionmodules", 0)))
+    if (!(await checkPermission(userId, "Permission_Modules", 0)))
       throw new CustomError(403, "Permission denied");
 
     if (!validateInput(req, res)) return;
 
-    const createdModule = await PermissionModule.create(body);
+    const createdModule = await Permission_Module.create(body);
     res.status(201).json({
       message: "Module created successfully",
       data: createdModule,
@@ -42,12 +42,12 @@ const findModules = async (req: Request, res: Response, next: NextFunction) => {
     if (identifier) {
       const idString = identifier.toString();
       if (idString.match(/^[0-9a-fA-F]{24}$/)) {
-        modules = await PermissionModule.findById(identifier).lean();
+        modules = await Permission_Module.findById(identifier).lean();
       } else {
-        modules = await PermissionModule.findOne({ name: identifier }).lean();
+        modules = await Permission_Module.findOne({ name: identifier }).lean();
       }
     } else {
-      modules = await PermissionModule.find().lean();
+      modules = await Permission_Module.find().lean();
     }
     res.status(200).json({
       message: "Modules fetched successfully",
@@ -70,12 +70,12 @@ const updateModule = async (
     const { userId } = req;
     const { id } = req.query;
 
-    if (!(await checkPermission(userId, "permissionmodules", 2)))
+    if (!(await checkPermission(userId, "Permission_Modules", 2)))
       throw new CustomError(403, "Permission denied");
 
     if (!validateInput(req, res)) return;
 
-    const updatedModule = await PermissionModule.findByIdAndUpdate(
+    const updatedModule = await Permission_Module.findByIdAndUpdate(
       id,
       req.body,
       { new: true }
@@ -104,10 +104,10 @@ const deleteModule = async (
     const { userId } = req;
     const { id } = req.query;
 
-    if (!(await checkPermission(userId, "permissionmodules", 3)))
+    if (!(await checkPermission(userId, "Permission_Modules", 3)))
       throw new CustomError(403, "Permission denied");
 
-    const deletedModule = await PermissionModule.findByIdAndDelete(id);
+    const deletedModule = await Permission_Module.findByIdAndDelete(id);
 
     if (!deletedModule) throw new CustomError(404, "Module not found");
 

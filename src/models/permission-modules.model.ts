@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { PermissionModuleType } from "../types/permissionModule.types";
+import { PermissionModuleType } from "../types/permission-module.types";
 const permissionModuleSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -11,15 +11,15 @@ const permissionModuleSchema = new Schema(
   }
 );
 
-permissionModuleSchema.pre('save', function(next) {
-  if (this.isModified('value')) {
+permissionModuleSchema.pre("save", function (next) {
+  if (this.isModified("value")) {
     this.value = this.value.toLowerCase();
   }
   next();
 });
 
 const PermissionModule = mongoose.model<PermissionModuleType & Document>(
-  "PermissionModule",
+  "Permission_Module",
   permissionModuleSchema
 );
 

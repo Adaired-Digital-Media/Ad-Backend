@@ -20,7 +20,7 @@ export const createCategory = async (
     const { userId, body } = req;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "categories", 0);
+    const permissionCheck = await checkPermission(userId, "product-categories", 0);
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }
@@ -187,7 +187,7 @@ export const updateCategory = async (
     let { identifier } = req.query;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "categories", 2);
+    const permissionCheck = await checkPermission(userId, "product-categories", 2);
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }
@@ -280,7 +280,7 @@ export const deleteCategory = async (
 
   try {
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "categories", 3);
+    const permissionCheck = await checkPermission(userId, "product-categories", 3);
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }
@@ -325,7 +325,7 @@ export const duplicateCategory = async (
 
   try {
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "categories", 0);
+    const permissionCheck = await checkPermission(userId, "product-categories", 0);
     if (!permissionCheck) {
       return res.status(403).json({ message: "Permission denied" });
     }

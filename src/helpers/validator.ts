@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { check, body, param, query } from "express-validator";
 import { TicketPriority, TicketStatus } from "../types/ticket.types";
 
@@ -84,152 +84,507 @@ export const validatePermissionModuleUpdate = [
   check("status").optional().isBoolean().default(true),
 ];
 
-// *********** Blogs and Blog Categories **********
+// *********** Blogs **********
 
 export const validateBlog = [
-  check("metaTitle", "Meta title is required").notEmpty().isString().trim(),
-  check("metaDescription", "Meta description is required")
+  // SEO Fields
+  check("seo.metaTitle", "SEO meta title is required")
     .notEmpty()
     .isString()
     .trim(),
-  check("canonicalLink", "Canonical link is required")
+  check("seo.metaDescription", "SEO meta description is required")
     .notEmpty()
     .isString()
     .trim(),
-  check("openGraphImage").optional().isString().trim(),
-  check("robotsText", "Robots text is required")
+  check("seo.canonicalLink", "SEO canonical link is required")
     .notEmpty()
     .isString()
     .trim()
-    .custom((value) => {
-      if (!value.includes("index") || !value.includes("follow")) {
-        throw new Error("Robots text must include 'index' and 'follow'");
-      }
-      return true;
-    }),
-  check("category").optional().isMongoId(),
-  check("featuredImage", "Featured image is required")
+    .withMessage("Canonical link must be a valid string (URL or slug)"),
+  check("seo.focusKeyword", "SEO focus keyword is required")
     .notEmpty()
     .isString()
     .trim(),
-  check("postTitle", "Post title is required").notEmpty().isString().trim(),
-  check("postDescription", "Post description is required")
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("slug").optional().isString().trim(),
-  check("tags").optional().isString().trim(),
-  check("blogAuthor").optional().isMongoId(),
-  check("status")
+  check("seo.keywords", "SEO keywords must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (keyword) => typeof keyword === "string" && keyword.trim().length > 0
+      );
+    })
+    .withMessage("Each keyword must be a non-empty string"),
+  check("seo.openGraph.title", "Open Graph title must be a string")
     .optional()
     .isString()
-    .isIn(["publish", "draft"])
-    .withMessage("Status must be either 'publish' or 'draft'"),
+    .trim(),
+  check("seo.openGraph.description", "Open Graph description must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.openGraph.image", "Open Graph image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("seo.openGraph.type", "Open Graph type must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.openGraph.url", "Open Graph URL must be a valid URL")
+    .optional()
+    .trim(),
+  check("seo.openGraph.siteName", "Open Graph site name must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.cardType", "Twitter card type must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.site", "Twitter card site must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.creator", "Twitter card creator must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.title", "Twitter card title must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.description", "Twitter card description must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.image", "Twitter card image must be a valid URL")
+    .optional()
+    .trim(),
+  check("seo.robotsText", "SEO robots text is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("seo.schemaOrg", "SEO schema.org must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.bodyScript", "SEO body script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.headerScript", "SEO header script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.footerScript", "SEO footer script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.priority", "SEO priority must be a number between 0 and 1")
+    .optional()
+    .isFloat({ min: 0, max: 1 }),
+  check("seo.changeFrequency", "SEO change frequency must be valid")
+    .optional()
+    .isIn(["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]),
+  check("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
+    .optional()
+    .isIn(["301", "302", null]),
+  check("seo.redirect.url", "SEO redirect URL must be a valid URL")
+    .optional()
+    // .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+
+  // Blog Fields
+  check("category", "Category must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+  check("featuredImage", "Featured image must be a valid URL")
+    .notEmpty()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("postTitle", "Post title is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("postDescription", "Post description is required")
+    .notEmpty()
+    .isString(),
+  check("slug", "Slug must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("tags", "Tags must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (tag) => typeof tag === "string" && tag.trim().length > 0
+      );
+    })
+    .withMessage("Each tag must be a non-empty string"),
+  check("blogAuthor", "Blog author must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+  check("status", "Status must be either 'publish' or 'draft'")
+    .optional()
+    .isIn(["publish", "draft"]),
 ];
 
 export const validateUpdateBlog = [
-  check("blogId", "Blog ID is required").notEmpty().isMongoId(),
-  check("metaTitle", "Meta title is required").optional().isString().trim(),
-  check("metaDescription", "Meta description is required")
+  // SEO Fields
+  check("seo.metaTitle", "SEO meta title must be a string")
     .optional()
     .isString()
     .trim(),
-  check("canonicalLink", "Canonical link is required")
+  check("seo.metaDescription", "SEO meta description must be a string")
     .optional()
     .isString()
     .trim(),
-  check("openGraphImage", "Open Graph image is required")
+  check("seo.canonicalLink", "SEO canonical link must be a valid string")
+    .optional()
+    .isString()
+    .trim()
+    .withMessage("Canonical link must be a valid string (URL or slug)"),
+  check("seo.focusKeyword", "SEO focus keyword must be a string")
     .optional()
     .isString()
     .trim(),
-  check("robotsText", "Robots text is required").optional().isString().trim(),
-  check("category", "Category is required").optional().isMongoId(),
-  check("featuredImage", "Featured image is required")
+  check("seo.keywords", "SEO keywords must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (keyword) => typeof keyword === "string" && keyword.trim().length > 0
+      );
+    })
+    .withMessage("Each keyword must be a non-empty string"),
+  check("seo.openGraph.title", "Open Graph title must be a string")
     .optional()
     .isString()
     .trim(),
-  check("postTitle", "Post title is required").optional().isString().trim(),
-  check("postDescription", "Post description is required")
+  check("seo.openGraph.description", "Open Graph description must be a string")
     .optional()
     .isString()
     .trim(),
-  check("slug", "Slug is required").optional().isString().trim(),
-  check("tags").optional().isString().trim(),
-  check("blogAuthor").optional().isMongoId(),
-  check("status").optional().isString().isIn(["publish", "draft"]),
+  check("seo.openGraph.image", "Open Graph image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("seo.openGraph.type", "Open Graph type must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.openGraph.url", "Open Graph URL must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("seo.openGraph.siteName", "Open Graph site name must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.cardType", "Twitter card type must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.site", "Twitter card site must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.creator", "Twitter card creator must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.title", "Twitter card title must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.description", "Twitter card description must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.twitterCard.image", "Twitter card image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("seo.robotsText", "SEO robots text must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.schemaOrg", "SEO schema.org must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.bodyScript", "SEO body script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.headerScript", "SEO header script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.footerScript", "SEO footer script must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("seo.priority", "SEO priority must be a number between 0 and 1")
+    .optional()
+    .isFloat({ min: 0, max: 1 }),
+  check("seo.changeFrequency", "SEO change frequency must be valid")
+    .optional()
+    .isIn(["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]),
+  check("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
+    .optional()
+    .isIn(["301", "302", null]),
+  check("seo.redirect.url", "SEO redirect URL must be a valid URL")
+    .optional()
+    // .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+
+  // Blog Fields
+  check("category", "Category must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+  check("featuredImage", "Featured image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("postTitle", "Post title must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("postDescription", "Post description must be a string")
+    .optional()
+    .isString(),
+  check("slug", "Slug must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("tags", "Tags must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (tag) => typeof tag === "string" && tag.trim().length > 0
+      );
+    })
+    .withMessage("Each tag must be a non-empty string"),
+  check("blogAuthor", "Blog author must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+  check("updatedBy", "Updated by must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+  check("status", "Status must be either 'publish' or 'draft'")
+    .optional()
+    .isIn(["publish", "draft"]),
 ];
+// ******************** Blog Categories ********************
 
-export const validateBlogCategory = [
+export const validateBlogCategoryCreate = [
+  // parentCategory: Optional, must be a valid MongoDB ObjectID
   check("parentCategory")
-    .optional()
-    .isMongoId()
-    .withMessage("Invalid parent category ID"),
+    .optional(),
 
+  // subCategories: Optional, must be an array of valid MongoDB ObjectIDs
   check("subCategories")
     .optional()
     .isArray()
-    .withMessage("Subcategories must be an array"),
-  body("subCategories.*.categoryId")
+    .withMessage("Subcategories must be an array")
+    .custom((value) => {
+      if (value.length > 0) {
+        return value.every((id: Types.ObjectId) =>
+          mongoose.isValidObjectId(id)
+        );
+      }
+      return true;
+    })
+    .withMessage("All subcategory IDs must be valid MongoDB ObjectIDs"),
+
+  check("image")
     .optional()
-    .isMongoId()
-    .withMessage("Invalid subcategory ID"),
+    .trim(),
 
-  check("categoryName", "Category name is required")
+  // name: Required, string, max 100 characters, unique (handled by Mongoose)
+  check("name")
     .notEmpty()
+    .withMessage("Name is required")
     .isString()
+    .withMessage("Name must be a string")
+    .isLength({ max: 100 })
+    .withMessage("Name must not exceed 100 characters")
     .trim()
+    .escape(),
 
-    .withMessage("Category name must be a string"),
-
-  check("categorySlug", "Category slug is required")
+  // slug: Required, string, max 100 characters, URL-friendly, unique (handled by Mongoose)
+  check("slug")
     .notEmpty()
+    .withMessage("Slug is required")
     .isString()
+    .withMessage("Slug must be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug must not exceed 100 characters")
     .trim()
+    .toLowerCase(),
 
-    .withMessage("Category slug must be a string"),
-
+  // status: Optional, must be 'publish' or 'draft'
   check("status")
     .optional()
-    .isBoolean()
-    .withMessage("Status must be a boolean"),
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either 'active' or 'inactive'"),
 
-  check("blogs").optional().isArray().withMessage("Blogs must be an array"),
-  body("blogs.*.blogId").optional().isMongoId().withMessage("Invalid blog ID"),
-];
+  // blogs: Optional, must be an array of valid MongoDB ObjectIDs
+  check("blogs")
+    .optional()
+    .isArray()
+    .withMessage("Blogs must be an array")
+    .custom((value) => {
+      if (value.length > 0) {
+        return value.every((id: Types.ObjectId) =>
+          mongoose.isValidObjectId(id)
+        );
+      }
+      return true;
+    })
+    .withMessage("All blog IDs must be valid MongoDB ObjectIDs"),
 
-export const validateUpdateBlogCategory = [
-  check("parentCategory")
+  // metaTitle: Optional, string, max 60 characters (SEO best practice)
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta title must be a string")
+    .isLength({ max: 60 })
+    .withMessage("Meta title must not exceed 60 characters")
+    .trim()
+    .escape(),
+
+  // metaDescription: Optional, string, max 160 characters (SEO best practice)
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta description must be a string")
+    .isLength({ max: 160 })
+    .withMessage("Meta description must not exceed 160 characters")
+    .trim()
+    .escape(),
+
+  // canonicalLink: Optional, must be a valid URL if provided
+  check("canonicalLink").optional().trim(),
+
+  // createdBy: Optional, must be a valid MongoDB ObjectID
+  check("createdBy")
     .optional()
     .isMongoId()
-    .withMessage("Invalid parent category ID"),
+    .withMessage("Created by must be a valid MongoDB ObjectID"),
+
+  // updatedBy: Optional, must be a valid MongoDB ObjectID
+  check("updatedBy")
+    .optional()
+    .isMongoId()
+    .withMessage("Updated by must be a valid MongoDB ObjectID"),
+];
+
+export const validateBlogCategoryUpdate = [
+  // id: Required, must be a valid MongoDB ObjectID
+  check("id")
+    .notEmpty()
+    .withMessage("Category ID is required")
+    .isMongoId()
+    .withMessage("Category ID must be a valid MongoDB ObjectID"),
+
+  // parentCategory: Optional, must be a valid MongoDB ObjectID
+  check("parentCategory").optional(),
+
+  // subCategories: Optional, must be an array of valid MongoDB ObjectIDs
   check("subCategories")
     .optional()
     .isArray()
-    .withMessage("Subcategories must be an array"),
-  body("subCategories.*.categoryId")
+    .withMessage("Subcategories must be an array")
+    .custom((value) => {
+      if (value.length > 0) {
+        return value.every((id: Types.ObjectId) =>
+          mongoose.isValidObjectId(id)
+        );
+      }
+      return true;
+    })
+    .withMessage("All subcategory IDs must be valid MongoDB ObjectIDs"),
+
+  // image: Optional, must be a valid URL if provided
+  check("image")
     .optional()
-    .isMongoId()
-    .withMessage("Invalid subcategory ID"),
-  check("categoryName")
-    .notEmpty()
+    .isURL()
+    .withMessage("Image must be a valid URL")
+    .trim(),
+
+  // name: Optional, string, max 100 characters
+  check("name")
     .optional()
     .isString()
+    .withMessage("Name must be a string")
+    .isLength({ max: 100 })
+    .withMessage("Name must not exceed 100 characters")
     .trim()
+    .escape(),
 
-    .withMessage("Category name must be a string"),
-  check("categorySlug")
-    .notEmpty()
+  // slug: Optional, string, max 100 characters, URL-friendly
+  check("slug")
     .optional()
     .isString()
+    .withMessage("Slug must be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug must not exceed 100 characters")
     .trim()
+    .toLowerCase(),
 
-    .withMessage("Category slug must be a string"),
+  // status: Optional, must be 'publish' or 'draft'
   check("status")
     .optional()
-    .isBoolean()
-    .withMessage("Status must be a boolean"),
-  check("blogs").optional().isArray().withMessage("Blogs must be an array"),
-  body("blogs.*.blogId").optional().isMongoId().withMessage("Invalid blog ID"),
+    .isIn(["publish", "draft"])
+    .withMessage("Status must be either 'publish' or 'draft'"),
+
+  // blogs: Optional, must be an array of valid MongoDB ObjectIDs
+  check("blogs")
+    .optional()
+    .isArray()
+    .withMessage("Blogs must be an array")
+    .custom((value) => {
+      if (value.length > 0) {
+        return value.every((id: Types.ObjectId) =>
+          mongoose.isValidObjectId(id)
+        );
+      }
+      return true;
+    })
+    .withMessage("All blog IDs must be valid MongoDB ObjectIDs"),
+
+  // metaTitle: Optional, string, max 60 characters
+  check("metaTitle")
+    .optional()
+    .isString()
+    .withMessage("Meta title must be a string")
+    .isLength({ max: 60 })
+    .withMessage("Meta title must not exceed 60 characters")
+    .trim()
+    .escape(),
+
+  // metaDescription: Optional, string, max 160 characters
+  check("metaDescription")
+    .optional()
+    .isString()
+    .withMessage("Meta description must be a string")
+    .isLength({ max: 160 })
+    .withMessage("Meta description must not exceed 160 characters")
+    .trim()
+    .escape(),
+
+  // canonicalLink: Optional, must be a valid URL if provided
+  check("canonicalLink").optional().trim(),
+
+  // updatedBy: Optional, must be a valid MongoDB ObjectID
+  check("updatedBy")
+    .optional()
+    .isMongoId()
+    .withMessage("Updated by must be a valid MongoDB ObjectID"),
 ];
 
 //  ********** Sevice Pages **********
@@ -340,47 +695,47 @@ export const ValidateUpdateService = [
 
 // ********** Case Studies **********
 
-export const validateCaseStudyCategory = [
-  check("categoryName", "Category name is required")
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("categorySlug", "Category slug is required")
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("technologies")
-    .optional()
-    .isArray()
-    .withMessage("Technologies must be an array"),
-  check("technologies.*.icon", "Technology icon is required")
-    .if(
-      (value, { req }) =>
-        req.body.technologies && req.body.technologies.length > 0
-    )
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("technologies.*.name", "Technology name is required")
-    .if(
-      (value, { req }) =>
-        req.body.technologies && req.body.technologies.length > 0
-    )
-    .notEmpty()
-    .isString()
-    .trim(),
-  check("caseStudies")
-    .optional()
-    .isArray()
-    .withMessage("Case studies must be an array"),
-  check("caseStudies.*.caseStudyId", "Case study ID must be a valid Mongo ID")
-    .if(
-      (value, { req }) =>
-        req.body.caseStudies && req.body.caseStudies.length > 0
-    )
-    .isMongoId(),
-  check("status", "Status must be a boolean").optional().isBoolean(),
-];
+// export const validateCaseStudyCategory = [
+//   check("categoryName", "Category name is required")
+//     .notEmpty()
+//     .isString()
+//     .trim(),
+//   check("categorySlug", "Category slug is required")
+//     .notEmpty()
+//     .isString()
+//     .trim(),
+//   check("technologies")
+//     .optional()
+//     .isArray()
+//     .withMessage("Technologies must be an array"),
+//   check("technologies.*.icon", "Technology icon is required")
+//     .if(
+//       (value, { req }) =>
+//         req.body.technologies && req.body.technologies.length > 0
+//     )
+//     .notEmpty()
+//     .isString()
+//     .trim(),
+//   check("technologies.*.name", "Technology name is required")
+//     .if(
+//       (value, { req }) =>
+//         req.body.technologies && req.body.technologies.length > 0
+//     )
+//     .notEmpty()
+//     .isString()
+//     .trim(),
+//   check("caseStudies")
+//     .optional()
+//     .isArray()
+//     .withMessage("Case studies must be an array"),
+//   check("caseStudies.*.caseStudyId", "Case study ID must be a valid Mongo ID")
+//     .if(
+//       (value, { req }) =>
+//         req.body.caseStudies && req.body.caseStudies.length > 0
+//     )
+//     .isMongoId(),
+//   check("status", "Status must be a boolean").optional().isBoolean(),
+// ];
 
 export const validateCaseStudyUpdateCategory = [
   check("categoryName", "Category name is required")
@@ -427,272 +782,6 @@ export const validateCaseStudyUpdateCategory = [
     )
     .isMongoId(),
   check("status", "Status must be a boolean").optional().isBoolean(),
-];
-
-export const validateCaseStudy = [
-  check("categoryId", "Category ID is required").notEmpty().isMongoId(),
-  check("categorySlug", "Category Slug is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("colorScheme", "Color Scheme is required").notEmpty().trim(),
-  check("cardImage", "Card Image is required").notEmpty().trim(),
-  check("slug", "Slug is required").notEmpty().trim(),
-  check("subHeading", "Sub Heading is required").notEmpty().trim(),
-  check("caseStudyName", "Case Study Name is required").notEmpty().trim(),
-  check("caseStudyDescription", "Case Study Description is required")
-    .notEmpty()
-    .trim(),
-  check("caseStudyImage", "Case Study Image is required").notEmpty().trim(),
-  check("aboutProjectDescription", "About Project Description is required")
-    .notEmpty()
-    .trim(),
-  check("challengesImage", "Challenges Image is required").notEmpty().trim(),
-  check("challengesDescription", "Challenges Description is required")
-    .notEmpty()
-    .trim(),
-  check("solutionsImage", "Solutions Image is required").notEmpty().trim(),
-  check("solutionsDescription", "Solutions Description is required")
-    .notEmpty()
-    .trim(),
-  check(
-    "challengesAndSolutions.*.title",
-    "Challenge and Solution Title is required"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check(
-    "challengesAndSolutions.*.content",
-    "Challenge and Solution Content is required"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("technologiesUsedTitle", "Technologies Used Title is required")
-    .notEmpty()
-    .trim(),
-  check(
-    "technologiesUsedDescription",
-    "Technologies Used Description is required"
-  )
-    .notEmpty()
-    .trim(),
-  check("technologiesUsed.*.id", "Technology ID is required")
-    .optional()
-    .notEmpty()
-    .isMongoId(),
-  check("technologiesUsed.*.icon", "Technology icon url required")
-    .optional()
-    .notEmpty()
-    .isMongoId(),
-  check("technologiesUsed.*.name", "Technology name is required")
-    .optional()
-    .notEmpty()
-    .isMongoId(),
-  check("goalsTitle", "Goals Title is required").notEmpty().trim(),
-  check("goalsDescription", "Goals Description is required").notEmpty().trim(),
-  check("objectives.*.title", "Objective Title is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("objectives.*.content", "Objective Content is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("stratergy.*.title", "Strategy Title is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("stratergy.*.content", "Strategy Content is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("goalImage", "Goal Image is required").notEmpty().trim(),
-  check("growthBox.*.title", "Growth Box Title is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("growthBox.*.content", "Growth Box Content is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultDescription", "Result Description is required")
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.title", "Result Box Title is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.percentage", "Result Box Percentage is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.description", "Result Box Description is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.icon", "Result Box Icon is required")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultFinalDescription", "Result Final Description is required")
-    .notEmpty()
-    .trim(),
-];
-
-export const validateUpdateCaseStudy = [
-  check("categoryId", "Category ID must be a valid Mongo ID")
-    .optional()
-    .isMongoId(),
-  check("categorySlug", "Category Slug must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("colorScheme", "Color Scheme must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("cardImage", "Card Image must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("slug", "Slug must not be empty").optional().notEmpty().trim(),
-  check("subHeading", "Sub Heading must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("caseStudyName", "Case Study Name must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("caseStudyDescription", "Case Study Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("caseStudyImage", "Case Study Image must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check(
-    "aboutProjectDescription",
-    "About Project Description must not be empty"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("challengesImage", "Challenges Image must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("challengesDescription", "Challenges Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("solutionsImage", "Solutions Image must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("solutionsDescription", "Solutions Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check(
-    "challengesAndSolutions.*.title",
-    "Challenge and Solution Title must not be empty"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check(
-    "challengesAndSolutions.*.content",
-    "Challenge and Solution Content must not be empty"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("technologiesUsedTitle", "Technologies Used Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check(
-    "technologiesUsedDescription",
-    "Technologies Used Description must not be empty"
-  )
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("technologiesUsed.*.id", "Technology ID must be a valid Mongo ID")
-    .optional()
-    .isMongoId(),
-  check("technologiesUsed.*.icon", "Technology icon URL must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("technologiesUsed.*.name", "Technology name must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("goalsTitle", "Goals Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("goalsDescription", "Goals Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("objectives.*.title", "Objective Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("objectives.*.content", "Objective Content must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("stratergy.*.title", "Strategy Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("stratergy.*.content", "Strategy Content must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("goalImage", "Goal Image must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("growthBox.*.title", "Growth Box Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("growthBox.*.content", "Growth Box Content must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultDescription", "Result Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.title", "Result Box Title must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.percentage", "Result Box Percentage must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.description", "Result Box Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultBox.*.icon", "Result Box Icon must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
-  check("resultFinalDescription", "Result Final Description must not be empty")
-    .optional()
-    .notEmpty()
-    .trim(),
 ];
 
 // ************** Products *********************
@@ -1119,4 +1208,373 @@ export const validateUpdateTicket = [
     .withMessage(
       `Priority must be one of: ${Object.values(TicketPriority).join(", ")}`
     ),
+];
+
+// ******************** Case Studies ********************
+
+export const validateCaseStudyCategory = [
+  check("name", "Category name is required").notEmpty().isString().trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
+  check("metaTitle", "Meta title is required").notEmpty().isString().trim(),
+  check("metaDescription", "Meta description is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  check("canonicalLink", "Canonical link must be a valid URL")
+    .notEmpty()
+    .trim(),
+  check("image", "Image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("tags", "Tags must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (tag) => typeof tag === "string" && tag.trim().length > 0
+      );
+    })
+    .withMessage("Each tag must be a non-empty string"),
+  check(
+    "parentCategory",
+    "Parent category must be a valid MongoDB ID"
+  ).optional(),
+  check("status", "Status must be either 'active' or 'inactive'")
+    .optional()
+    .isIn(["active", "inactive"]),
+  check("createdBy", "Created by must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+];
+
+export const validateUpdateCaseStudyCategory = [
+  check("name", "Category name must be a string").optional().isString().trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
+  check("metaTitle", "Meta title must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("metaDescription", "Meta description must be a string")
+    .optional()
+    .isString()
+    .trim(),
+  check("canonicalLink", "Canonical link must be a valid URL")
+    .optional()
+    .trim(),
+  check("image", "Image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  check("tags", "Tags must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (tag) => typeof tag === "string" && tag.trim().length > 0
+      );
+    })
+    .withMessage("Each tag must be a non-empty string"),
+  check(
+    "parentCategory",
+    "Parent category must be a valid MongoDB ID"
+  ).optional(),
+  check("status", "Status must be either 'active' or 'inactive'")
+    .optional()
+    .isIn(["active", "inactive"]),
+  check("updatedBy", "Updated by must be a valid MongoDB ID")
+    .optional()
+    .isMongoId(),
+];
+
+export const validateCaseStudy = [
+  // Case Study fields
+  check("name", "Case study name is required").notEmpty().isString().trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
+  check("category", "Category must be a valid MongoDB ID")
+    .optional()
+    .isString(),
+  check("colorScheme", "Color scheme is required").notEmpty().isString().trim(),
+  check("status", "Status must be either 'active' or 'inactive'")
+    .optional()
+    .isIn(["active", "inactive"]),
+  check("bodyData", "Body data must be an array").optional().isArray(),
+  check("createdBy", "Created by must be a valid MongoDB ID").optional(),
+  check("updatedBy", "Updated by must be a valid MongoDB ID").optional(),
+
+  // SEO fields
+  body("seo.metaTitle", "SEO meta title is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  body("seo.metaDescription", "SEO meta description is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  body("seo.canonicalLink", "SEO canonical link must be a valid string")
+    .notEmpty()
+    .isString()
+    .trim(),
+  body("seo.focusKeyword", "SEO focus keyword is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  body("seo.keywords", "SEO keywords must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (keyword) => typeof keyword === "string" && keyword.trim().length > 0
+      );
+    })
+    .withMessage("Each SEO keyword must be a non-empty string"),
+  body("seo.openGraph.title", "Open Graph title must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body(
+    "seo.openGraph.description",
+    "Open Graph description must be a valid string"
+  )
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.openGraph.image", "Open Graph image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.openGraph.type", "Open Graph type must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.openGraph.url", "Open Graph URL must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.openGraph.siteName", "Open Graph site name must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.cardType", "Twitter card type must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.site", "Twitter card site must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.creator", "Twitter card creator must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.title", "Twitter card title must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body(
+    "seo.twitterCard.description",
+    "Twitter card description must be a valid string"
+  )
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.image", "Twitter card image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.robotsText", "SEO robots text is required")
+    .notEmpty()
+    .isString()
+    .trim(),
+  body("seo.schemaOrg", "SEO schema.org must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.bodyScript", "SEO body script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.headerScript", "SEO header script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.footerScript", "SEO footer script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.priority", "SEO priority must be a number between 0 and 1")
+    .optional()
+    .isFloat({ min: 0, max: 1 }),
+  body("seo.changeFrequency", "SEO change frequency must be a valid value")
+    .optional()
+    .isIn([
+      "always",
+      "hourly",
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "never",
+    ]),
+  body("seo.lastModified", "SEO last modified must be a valid date")
+    .optional()
+    .isISO8601()
+    .toDate(),
+  body("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
+    .optional()
+    .isIn(["301", "302", null]),
+  body("seo.redirect.url", "SEO redirect URL must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+];
+
+export const validateUpdateCaseStudy = [
+  // Case Study fields
+  check("id", "Case study ID is required").notEmpty().isMongoId(),
+  check("name", "Case study name must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
+  check("category", "Category must be a valid MongoDB ID").optional(),
+  check("colorScheme", "Color scheme must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  check("status", "Status must be either 'active' or 'inactive'")
+    .optional()
+    .isIn(["active", "inactive"]),
+  check("bodyData", "Body data must be an array").optional().isArray(),
+  check("updatedBy", "Updated by must be a valid MongoDB ID").optional(),
+
+  // SEO fields (all optional for updates)
+  body("seo.metaTitle", "SEO meta title must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.metaDescription", "SEO meta description must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.canonicalLink", "SEO canonical link must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.focusKeyword", "SEO focus keyword must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.keywords", "SEO keywords must be an array of strings")
+    .optional()
+    .isArray()
+    .custom((value: string[]) => {
+      return value.every(
+        (keyword) => typeof keyword === "string" && keyword.trim().length > 0
+      );
+    })
+    .withMessage("Each SEO keyword must be a non-empty string"),
+  body("seo.openGraph.title", "Open Graph title must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body(
+    "seo.openGraph.description",
+    "Open Graph description must be a valid string"
+  )
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.openGraph.image", "Open Graph image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.openGraph.type", "Open Graph type must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.openGraph.url", "Open Graph URL must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.openGraph.siteName", "Open Graph site name must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.cardType", "Twitter card type must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.site", "Twitter card site must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.creator", "Twitter card creator must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.title", "Twitter card title must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body(
+    "seo.twitterCard.description",
+    "Twitter card description must be a valid string"
+  )
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.twitterCard.image", "Twitter card image must be a valid URL")
+    .optional()
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .trim(),
+  body("seo.robotsText", "SEO robots text must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.schemaOrg", "SEO schema.org must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.bodyScript", "SEO body script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.headerScript", "SEO header script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.footerScript", "SEO footer script must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+  body("seo.priority", "SEO priority must be a number between 0 and 1")
+    .optional()
+    .isFloat({ min: 0, max: 1 }),
+  body("seo.changeFrequency", "SEO change frequency must be a valid value")
+    .optional()
+    .isIn([
+      "always",
+      "hourly",
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "never",
+    ]),
+  body("seo.lastModified", "SEO last modified must be a valid date")
+    .optional()
+    .isISO8601()
+    .toDate(),
+  body("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
+    .optional()
+    .isIn(["301", "302", null]),
+  body("seo.redirect.url", "SEO redirect URL must be a valid string")
+    .optional()
+    .isString()
+    .trim(),
+];
+
+export const validateDeleteCaseStudy = [
+  query("id", "Case study ID is required").notEmpty().isMongoId(),
 ];

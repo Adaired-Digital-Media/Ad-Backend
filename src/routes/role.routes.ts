@@ -6,7 +6,7 @@ import {
   findRoles,
   deleteRole,
   duplicateRole,
-} from "../controllers/roleController";
+} from "../controllers/role.controller";
 import verifyToken from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 

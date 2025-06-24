@@ -184,6 +184,13 @@ export const applyCoupon = async (
     throw new CustomError(404, "Invalid or expired coupon");
   }
 
+  // Check is coupon is already used to its limit
+  if (coupon.usedCount >= coupon.totalUsageLimit) {
+    throw new CustomError(
+      400,
+      `Coupon "${coupon.code}" has reached its usage limit`
+    );
+  }
   // Validate discount vs minimum order amount
   validateDiscountVsMinOrder(coupon);
 
@@ -325,124 +332,6 @@ export const createCoupon = async (
 // *********************************************************
 // ******************* Apply Coupon ***********************
 // *********************************************************
-// export const calculateCouponDiscount = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const { code, localCart } = req.body;
-
-//     if (!localCart || !localCart.products || localCart.products.length === 0) {
-//       return next(new CustomError(400, "Cart cannot be empty"));
-//     }
-
-//     const cartData = localCart;
-
-//     if (!code) {
-//       return res.status(200).json({
-//         message: "No coupon applied",
-//         originalTotal: cartData.totalPrice,
-//         couponDiscount: 0,
-//         finalPrice: cartData.totalPrice,
-//         appliedTo: [],
-//         productDiscounts: {},
-//         couponDetails: null,
-//       });
-//     }
-
-//     const coupon = await Coupon.findOne({
-//       code: code,
-//       status: "Active",
-//       $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: null }],
-//     });
-
-//     if (!coupon) {
-//       return next(new CustomError(404, "Invalid or expired coupon"));
-//     }
-
-//     const {
-//       discount,
-//       discountedTotal,
-//       appliedTo = [],
-//     } = calculateDiscount(coupon, cartData);
-
-//     // Build product discounts map with proportional distribution
-//     const productDiscounts: Record<string, number> = {};
-//     const eligibleProducts = cartData.products.filter((p: any) =>
-//       appliedTo.some((id: any) => id.toString() === p.product._id.toString())
-//     );
-//     const eligibleTotal = eligibleProducts.reduce(
-//       (sum: number, p: any) => sum + p.totalPrice,
-//       0
-//     );
-
-//     // If discount is capped, distribute it proportionally
-//     if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
-//       const cappedDiscount = coupon.maxDiscountAmount;
-//       eligibleProducts.forEach((product: any) => {
-//         const productShare = product.totalPrice / eligibleTotal; // Proportion of total price
-//         productDiscounts[product.product._id.toString()] = Number(
-//           (cappedDiscount * productShare).toFixed(2)
-//         );
-//       });
-//     } else {
-//       // Otherwise, use the original percentage-based discount
-//       eligibleProducts.forEach((product: any) => {
-//         productDiscounts[product.product._id.toString()] =
-//           coupon.discountType === "flat"
-//             ? coupon.discountValue
-//             : Number(
-//                 ((product.totalPrice * coupon.discountValue) / 100).toFixed(2)
-//               );
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Coupon discount calculated successfully",
-//       originalTotal: cartData.totalPrice,
-//       couponDiscount: Math.min(discount, coupon.maxDiscountAmount || Infinity),
-//       finalPrice: discountedTotal,
-//       appliedTo: appliedTo.map((id: any) => id.toString()),
-//       productDiscounts,
-//       couponDetails: {
-//         code: coupon.code,
-//         couponApplicableOn: coupon.couponApplicableOn,
-//         couponType: coupon.couponType,
-//         discountType: coupon.discountType,
-//         discountValue: coupon.discountValue,
-//         maxDiscountAmount:
-//           coupon.maxDiscountAmount !== Infinity
-//             ? coupon.maxDiscountAmount
-//             : null,
-//         minOrderAmount:
-//           coupon.minOrderAmount !== 1 ? coupon.minOrderAmount : null,
-//         minQuantity: coupon.minQuantity !== 1 ? coupon.minQuantity : null,
-//         maxWordCount: coupon.maxWordCount,
-//         specificProducts:
-//           coupon.couponApplicableOn === "specificProducts"
-//             ? await Product.find({
-//                 _id: { $in: coupon.specificProducts },
-//               }).select("name")
-//             : [],
-//         productCategories:
-//           coupon.couponApplicableOn === "productCategories"
-//             ? await ProductCategory.find({
-//                 _id: { $in: coupon.productCategories },
-//               }).select("name")
-//             : [],
-//       },
-//     });
-//   } catch (error) {
-//     next(
-//       new CustomError(
-//         500,
-//         error instanceof Error ? error.message : "An error occurred"
-//       )
-//     );
-//   }
-// };
 export const calculateCouponDiscount = async (
   req: Request,
   res: Response,
@@ -477,6 +366,16 @@ export const calculateCouponDiscount = async (
 
     if (!coupon) {
       return next(new CustomError(404, "Invalid or expired coupon"));
+    }
+
+    // Check is coupon is already used to its limit
+    if (coupon.usedCount >= coupon.totalUsageLimit) {
+      return next(
+        new CustomError(
+          400,
+          `Coupon "${coupon.code}" has reached its usage limit`
+        )
+      );
     }
 
     // Validate discount vs minimum order amount

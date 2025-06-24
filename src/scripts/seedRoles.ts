@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Role from "../models/roleModel";
+import Role from "../models/role.model";
 import dotenv from "dotenv";
 
 // Load environment variables from .env file

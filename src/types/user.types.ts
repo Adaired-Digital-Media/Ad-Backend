@@ -16,7 +16,5 @@ export type UserTypes = {
   isVerifiedUser?: boolean;
   refreshToken?: string | null;
   googleId?: string;
-  orderHistory?: {
-    orderId: Types.ObjectId | null;
-  }[],
+  orderHistory?: Types.ObjectId[],
 };

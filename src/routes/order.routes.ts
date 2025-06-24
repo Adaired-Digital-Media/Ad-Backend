@@ -7,7 +7,7 @@ import {
   getOrdersByUserId,
   getOrderStats,
   getSalesReport
-} from "../controllers/orderController";
+} from "../controllers/order.controller";
 import express, { Router } from "express";
 import verifyToken from "../middlewares/authMiddleware";
 

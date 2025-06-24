@@ -9,14 +9,14 @@ import helmet from "helmet";
 
 // Routers Import
 import multerRoute from "./routes/multer.routes";
-import authRoute from "./routes/auth.routes";
-import userRoute from "./routes/user.routes";
-import roleRoute from "./routes/role.routes";
-import permissionModuleRoute from "./routes/permissionModule.routes";
-import blogRoute from "./routes/blog.routes";
-import blogCategoryRoute from "./routes/blogCategory.routes";
-import caseStudyRoute from "./routes/casestudy.routes";
-import caseStudyCategoryRoute from "./routes/casestudyCategory.routes";
+import auth_routes from "./routes/auth.routes";
+import user_routes from "./routes/user.routes";
+import role_routes from "./routes/role.routes";
+import permission_module_routes from "./routes/permission-module.routes";
+import blog_routes from "./routes/blog.routes";
+import blog_category_routes from "./routes/blog-category.routes"
+import case_study_routes from "./routes/case-study.routes";
+import case_study_category_routes from "./routes/case-study-category.routes";
 import serviceRoute from "./routes/service.routes";
 import productRoute from "./routes/product.routes";
 import productFormRoute from "./routes/form.routes";
@@ -26,6 +26,8 @@ import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import invoiceRoutes from "./routes/invoices.routes";
+import pageSEORoute from "./routes/static-pages-seo.routes";
+
 import { emptyCartJob } from "./cron-jobs/empty-cart";
 
 dotenv.config();
@@ -80,14 +82,14 @@ app.get(`${basePath}/ping`, (req: Request, res: Response) => {
 });
 
 app.use(`${basePath}/multer`, multerRoute);
-app.use(`${basePath}/auth`, authRoute);
-app.use(`${basePath}/user`, userRoute);
-app.use(`${basePath}/role`, roleRoute);
-app.use(`${basePath}/permissionModule`, permissionModuleRoute);
-app.use(`${basePath}/blog`, blogRoute);
-app.use(`${basePath}/blog/category`, blogCategoryRoute);
-app.use(`${basePath}/case-study`, caseStudyRoute);
-app.use(`${basePath}/case-study/category`, caseStudyCategoryRoute);
+app.use(`${basePath}/auth`, auth_routes);
+app.use(`${basePath}/user`, user_routes);
+app.use(`${basePath}/role`, role_routes);
+app.use(`${basePath}/permission-module`, permission_module_routes);
+app.use(`${basePath}/blog`, blog_routes);
+app.use(`${basePath}/blog-category`, blog_category_routes);
+app.use(`${basePath}/case-study`, case_study_routes);
+app.use(`${basePath}/case-study/category`, case_study_category_routes);
 app.use(`${basePath}/service`, serviceRoute);
 app.use(`${basePath}/product`, productRoute);
 app.use(`${basePath}/product/form`, productFormRoute);
@@ -97,6 +99,9 @@ app.use(`${basePath}/orders`, orderRoute);
 app.use(`${basePath}/coupons`, couponRoute);
 app.use(`${basePath}/tickets`, ticketRoutes);
 app.use(`${basePath}/invoices`, invoiceRoutes);
+app.use(`${basePath}/page-seo`, pageSEORoute); 
+
+
 
 // Static files and View Engine
 app.use("/static", express.static(path.join(__dirname + "static")));

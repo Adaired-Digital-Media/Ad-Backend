@@ -1,5 +1,5 @@
-import Role from "../models/roleModel";
-import User from "../models/userModel";
+import Role from "../models/role.model";
+import User from "../models/user.model";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import { validateInput } from "../utils/validateInput";
