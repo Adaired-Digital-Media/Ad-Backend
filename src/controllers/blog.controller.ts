@@ -99,7 +99,7 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
 // ************************************************************************** //
 const readBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id, slug, category, status } = req.query;
+    const { id, slug, category, status, limit, skip = 0 } = req.query;
 
     // Build query with type safety
     const query: any = {};
@@ -110,6 +110,7 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
     } else if (status && typeof status === "string") {
       query.status = status;
     }
+    
     if (category && typeof category === "string") {
       const categoryExists = await Blog_Category.findById(category);
       if (!categoryExists) {
@@ -118,8 +119,12 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
       query.category = category;
     }
 
-    // Execute query
-    const blogs = await Blog.find(query)
+    // Convert limit and skip to numbers
+    const numericLimit = limit ? parseInt(limit as string) : undefined;
+    const numericSkip = parseInt(skip as string);
+
+    // Execute query with pagination
+    const queryBuilder = Blog.find(query)
       .populate({
         path: "blogAuthor",
         select: "-__v -cart -wishlist -orderHistory",
@@ -130,6 +135,19 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
       })
       .sort({ createdAt: -1 })
       .lean();
+
+    // Apply limit if provided
+    if (numericLimit) {
+      queryBuilder.limit(numericLimit);
+    }
+
+    // Always apply skip
+    queryBuilder.skip(numericSkip);
+
+    const blogs = await queryBuilder.exec();
+
+    // Get total count for pagination info (without limit/skip)
+    const totalCount = await Blog.countDocuments(query);
 
     res.status(200).json({
       success: true,
