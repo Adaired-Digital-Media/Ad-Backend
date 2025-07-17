@@ -1,16 +1,14 @@
-import Category from "../models/productCategoryModel";
+import Product_Category from "../models/product-category.model";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
-import {checkPermission} from "../helpers/authHelper";
-import { CategoryTypes } from "../types/productTypes";
-import { validationResult } from "express-validator";
+import { checkPermission } from "../helpers/authHelper";
+import { validateInput } from "../utils/validateInput";
 import { Types } from "mongoose";
-import ProductCategory from "../models/productCategoryModel";
 
-// ***************************************
-// ********** Create Category **************
-// ***************************************
+// **************************************************************************
+// ********** Create New Category *******************************************
+// **************************************************************************
 export const createCategory = async (
   req: Request,
   res: Response,
@@ -18,127 +16,157 @@ export const createCategory = async (
 ) => {
   try {
     const { userId, body } = req;
+    const { name, slug, parentCategory } = body;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "product-categories", 0);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
+    const permissionCheck = await checkPermission(userId, "products", 0);
+    if (!permissionCheck) return;
 
     // Validate user input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
-      });
-    }
+    if (!validateInput(req, res)) return;
 
-    const { slug, name, parentCategory } = body;
-
-    // If slug is not provided, use the category name to create the slug
-    const slugToUse = slug
-      ? slugify(slug, { lower: true })
-      : slugify(name, { lower: true });
-
-    // Check if the slug is already in use
-    const existingCategory = await Category.findOne({
-      slug: slugToUse,
+    // Check for existing category by name or slug
+    const existingCategory = await Product_Category.findOne({
+      $or: [
+        { name: { $regex: new RegExp("^" + name + "$", "i") } },
+        {
+          slug: slugify(slug || name, { lower: true }),
+        },
+      ],
     });
+
     if (existingCategory) {
-      return res.status(400).json({ message: "Slug already in use" });
-    }
-
-    // Create category
-    const newCategory: CategoryTypes = {
-      ...body,
-      slug: slugToUse,
-      createdBy: body.userId ? body.userId : userId,
-    };
-    const createdCategory = await Category.create(newCategory);
-
-    // If it has a parent (i.e., it's a subcategory), push its ID to the parent's `children` array
-    if (parentCategory) {
-      await Category.findByIdAndUpdate(
-        parentCategory,
-        { $push: { children: createdCategory._id } },
-        { new: true }
+      throw new CustomError(
+        400,
+        existingCategory.name === name
+          ? "Category with this name already exists"
+          : "Category with this slug already exists"
       );
     }
 
+    // Create new category
+    const newCategoryData = {
+      ...body,
+      slug: slugify(slug || name, { lower: true }),
+      createdBy: userId,
+      updatedBy: userId,
+    };
+    const newCategory = await Product_Category.create(newCategoryData);
+
+    // Update parent's subcategories if applicable
+    if (parentCategory) {
+      await Product_Category.findByIdAndUpdate(parentCategory, {
+        $addToSet: { subCategories: newCategory._id },
+      });
+    }
+
+    // Populate parent category for response
+    const newCategoryLean = await Product_Category.findById(newCategory._id)
+      .populate("parentCategory", "name slug")
+      .lean();
+
     res.status(201).json({
+      success: true,
       message: "Category created successfully",
-      data: createdCategory,
+      data: newCategoryLean,
     });
-  } catch (error) {
-    throw new CustomError(400, "Something went wrong");
+  } catch (error: any) {
+    // Handle validation errors
+    if (error.message.includes("required") || error.message.includes("empty")) {
+      next(new CustomError(400, error.message));
+    } else {
+      next(new CustomError(500, error.message));
+    }
   }
 };
 
-// ***************************************
-// ********** Read Category ****************
-// ***************************************
+// **************************************************************************
+// ********** Retrieve categories (single, all, or category-wise) ***********
+// **************************************************************************
 export const readCategories = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    let { identifier, children, products, childrenProducts } = req.query;
+    const {
+      id,
+      slug,
+      status,
+      parentCategory,
+      includeProducts,
+      includeSubcategoryProducts,
+      includeSubCategories,
+    } = req.query;
 
-    // If no identifier is provided, return all categories
-    if (!identifier) {
-      const categories = await Category.find().populate("parentCategory");
+    // If no ID or slug is provided → return all categories
+    if (!id && !slug) {
+      const query: any = {};
+      if (status) query.status = status;
+      if (parentCategory) query.parentCategory = parentCategory;
+
+      const categories = await Product_Category.find(query)
+        .populate("parentCategory", "name slug")
+        .sort({ createdAt: -1 })
+        .lean();
+
       return res.status(200).json({
         message: "All categories",
         data: categories,
       });
     }
 
-    identifier = String(identifier);
+    // Identifier (slug or id)
+    const identifier = id || slug;
     const pipeline: any[] = [];
 
-    // Match based on the identifier (ObjectId or slug)
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      pipeline.push({ $match: { _id: new Types.ObjectId(identifier) } });
-    } else {
-      pipeline.push({ $match: { slug: identifier } });
+    // Match by ID or slug
+    if (identifier && typeof identifier === "string") {
+      if (/^[0-9a-fA-F]{24}$/.test(identifier)) {
+        pipeline.push({
+          $match: { _id: new Types.ObjectId(identifier) },
+        });
+      } else {
+        pipeline.push({
+          $match: { slug: identifier },
+        });
+      }
     }
 
-    // Populate `children` if `children=true`
-    if (children === "true") {
+    // Populate subCategories
+    if (includeSubCategories === "true") {
       pipeline.push({
         $lookup: {
-          from: "productcategories",
-          localField: "children",
+          from: "product_categories",
+          localField: "subCategories",
           foreignField: "_id",
-          as: "children",
+          as: "subCategories",
         },
       });
 
-      // Populate `children.products` if `childrenProducts=true`
-      if (childrenProducts === "true") {
+      // If requested, populate products inside subCategories
+      if (includeSubcategoryProducts === "true") {
         pipeline.push(
-          { $unwind: "$children" },
+          { $unwind: "$subCategories" },
           {
             $lookup: {
               from: "products",
-              localField: "children.products",
+              localField: "subCategories.products",
               foreignField: "_id",
-              as: "children.products",
+              as: "subCategories.products",
             },
           },
           {
             $group: {
               _id: "$_id",
-              children: { $push: "$children" },
+              subCategories: { $push: "$subCategories" },
               root: { $first: "$$ROOT" },
             },
           },
           {
             $replaceRoot: {
               newRoot: {
-                $mergeObjects: ["$root", { children: "$children" }],
+                $mergeObjects: ["$root", { subCategories: "$subCategories" }],
               },
             },
           }
@@ -146,8 +174,8 @@ export const readCategories = async (
       }
     }
 
-    // Populate `products` if `products=true`
-    if (products === "true") {
+    // Populate products of this category
+    if (includeProducts === "true") {
       pipeline.push({
         $lookup: {
           from: "products",
@@ -158,59 +186,62 @@ export const readCategories = async (
       });
     }
 
-    // Execute aggregation
-    const category = await Category.aggregate(pipeline);
+    // Populate parent category
+    pipeline.push({
+      $lookup: {
+        from: "product_categories",
+        localField: "parentCategory",
+        foreignField: "_id",
+        as: "parentCategory",
+      },
+    });
 
-    if (!category || category.length === 0) {
+    pipeline.push({
+      $unwind: {
+        path: "$parentCategory",
+        preserveNullAndEmptyArrays: true,
+      },
+    });
+
+    // Execute query
+    const result = await Product_Category.aggregate(pipeline);
+
+    if (!result || result.length === 0) {
       return next(new CustomError(404, "Category not found!"));
     }
 
     return res.status(200).json({
-      message: "Category found",
-      data: category[0],
+      message: "Categories retrieved successfully",
+      data: result[0],
     });
   } catch (error: any) {
     return next(new CustomError(500, error.message));
   }
 };
 
-// ***************************************
-// ********** Update Category **************
-// ***************************************
+// **************************************************************************
+// ********** Update a category by ID (query parameter) *********************
+// **************************************************************************
 export const updateCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { userId, body } = req;
-    let { identifier } = req.query;
+    const { userId, query, body } = req;
+    const { id } = query;
 
     // Check Permission
-    const permissionCheck = await checkPermission(userId, "product-categories", 2);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
+    const permissionCheck = await checkPermission(userId, "products", 2);
+    if (!permissionCheck) return;
 
-    // Validate user input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: "Invalid input",
-        errors: errors.array(),
-      });
-    }
+    // Validate input
+    if (!validateInput(req, res)) return;
 
-    identifier = String(identifier);
-
-    // Find the category (either by ID or slug)
-    let category;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      // Find category by ID
-      category = await Category.findById(identifier);
-    } else {
-      // Find category by slug
-      category = await Category.findOne({ slug: identifier });
+    // Check if category exists
+    const category = await Product_Category.findById(id);
+    if (!category) {
+      throw new CustomError(404, "Category not found");
     }
 
     // Check if the category exists
@@ -218,154 +249,130 @@ export const updateCategory = async (
       return res.status(404).json({ message: "Category not found" });
     }
 
-    // Check if the slug is being updated, and if it is, validate uniqueness
-    if (body.slug && body.slug !== category.slug) {
-      const existingSlugCategory = await Category.findOne({
-        slug: slugify(body.slug, { lower: true }),
+    // Check for duplicate name or slug (excluding current category)
+    if (body.name || body.slug) {
+      const existingCategory = await Product_Category.findOne({
+        $or: [
+          {
+            name: {
+              $regex: new RegExp("^" + body.name + "$", "i"),
+            },
+          },
+          {
+            slug: slugify(body.slug || body.name, {
+              lower: true,
+            }),
+          },
+        ],
+        _id: { $ne: id },
       });
-      if (existingSlugCategory) {
-        return res.status(400).json({ message: "Slug already in use" });
+      if (existingCategory) {
+        throw new CustomError(
+          400,
+          existingCategory.name === body.name
+            ? "Category with this name already exists"
+            : "Category with this slug already exists"
+        );
       }
-      body.slug = slugify(body.slug, { lower: true });
     }
 
     // If parent category is changing, update the old and new categories
     if (
       body.parentCategory &&
-      body.parentCategory !== category.parentCategory
+      body.parentCategory !== category.parentCategory?.toString()
     ) {
-      // Update the old parent category's children array
-      await Category.findByIdAndUpdate(
-        category.parentCategory,
-        { $pull: { children: category._id } },
-        { new: true }
-      );
+      // Remove from old parent's subCategories
+      if (category.parentCategory) {
+        await Product_Category.findByIdAndUpdate(
+          category.parentCategory,
+          {
+            $pull: { subCategories: category._id },
+          },
+          { new: true }
+        );
+      }
 
-      // Update the new parent category's children array
-      await Category.findByIdAndUpdate(
-        body.parentCategory,
-        { $push: { children: category._id } },
-        { new: true }
-      );
+      // Add to new parent's subCategories
+      await Product_Category.findByIdAndUpdate(body.parentCategory, {
+        $addToSet: { subCategories: category._id },
+      });
     }
 
     body.updatedBy = userId;
 
-    // Update the category
-    const updatedCategory = await Category.findByIdAndUpdate(
-      category._id,
-      { $set: { ...body } },
-      { new: true }
-    );
+    // Update category
+    const updatedCategory = await Product_Category.findByIdAndUpdate(
+      id,
+      {
+        ...body,
+        updatedBy: userId,
+        slug: body.slug && slugify(body.slug, { lower: true }),
+      },
+      { new: true, runValidators: true }
+    ).populate("parentCategory", "name slug");
+
+    if (!updatedCategory) {
+      throw new CustomError(404, "Category not found");
+    }
 
     res.status(200).json({
       message: "Category updated successfully",
       data: updatedCategory,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    if (error.message.includes("required") || error.message.includes("empty")) {
+      next(new CustomError(400, error.message));
+    } else {
+      next(new CustomError(500, error.message));
+    }
   }
 };
 
-// ***************************************
-// ********** Delete Category **************
-// ***************************************
+// **************************************************************************
+// ********** Delete a category by ID (query parameter) *********************
+// **************************************************************************
 export const deleteCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { userId } = req;
-  let { identifier } = req.query;
-
   try {
-    // Check Permission
-    const permissionCheck = await checkPermission(userId, "product-categories", 3);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
+    const { userId, query } = req;
+    const { id } = query;
 
-    identifier = String(identifier);
+    // Check permissions
+    const permissionCheck = await checkPermission(userId, "products", 3);
+    if (!permissionCheck) return;
 
-    // Find the category (either by ID or slug)
-    let category;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      category = await Category.findById(identifier);
-    } else {
-      category = await Category.findOne({ slug: identifier });
-    }
-
+    // Check if category exists
+    const category = await Product_Category.findById(id);
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      throw new CustomError(404, "Category not found");
     }
 
-    await ProductCategory.findByIdAndUpdate(category.parentCategory, {
-      $pull: { children: category._id },
+    // Check if category has subcategories
+    if (category.subCategories.length > 0) {
+      throw new CustomError(
+        400,
+        "Cannot delete category with subcategories. Delete subcategories first."
+      );
+    }
+
+    // Remove from parent's subCategories if applicable
+    if (category.parentCategory) {
+      await Product_Category.findByIdAndUpdate(category.parentCategory, {
+        $pull: { subCategories: category._id },
+      });
+    }
+
+    // Delete category
+    await Product_Category.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Category deleted successfully",
+      data: null,
     });
-
-    // Delete the category
-    await Category.findByIdAndDelete(category._id);
-
-    res.status(200).json({ message: "Category deleted successfully" });
   } catch (error: any) {
-    return next(new CustomError(500, error.message));
-  }
-};
-
-// ***************************************
-// ********** Duplicate Category ***********
-// ***************************************
-export const duplicateCategory = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { userId, params } = req;
-  let { identifier } = req.query;
-
-  try {
-    // Check Permission
-    const permissionCheck = await checkPermission(userId, "product-categories", 0);
-    if (!permissionCheck) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
-
-    identifier = String(identifier);
-
-    // Find the category (either by ID or slug)
-    let category;
-    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      category = await Category.findById(identifier).lean();
-    } else {
-      category = await Category.findOne({ slug: identifier }).lean();
-    }
-
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-
-    // Prepare the duplicated category data
-    const duplicatedCategoryData = {
-      ...category,
-      _id: new Types.ObjectId(),
-      name: `${category.name} (Copy)`,
-      slug: `${category.slug}-copy-${Date.now()}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    // Create the duplicated category
-    const duplicatedCategory = await Category.create(duplicatedCategoryData);
-
-    await ProductCategory.findByIdAndUpdate(duplicatedCategory.parentCategory, {
-      $push: { children: duplicatedCategory._id },
-    });
-
-    res.status(201).json({
-      message: "Category duplicated successfully",
-      data: duplicatedCategory,
-    });
-  } catch (error) {
-    next(error);
+    next(new CustomError(500, error.message));
   }
 };

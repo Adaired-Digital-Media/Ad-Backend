@@ -192,7 +192,6 @@ export const createOrder = async (
         paymentStatus: "Paid",
       });
       await newOrder.save();
-      console.log(`Free order created: ${newOrder._id}`);
     } else {
       const session = await createStripeSession(
         cart,
@@ -898,7 +897,7 @@ export const getOrdersByUserId = async (
           path: "products.product",
           populate: {
             path: "category",
-            model: "ProductCategory",
+            model: "Product_Category",
             select: "_id name",
           },
         })
@@ -912,7 +911,7 @@ export const getOrdersByUserId = async (
           path: "products.product",
           populate: {
             path: "category",
-            model: "ProductCategory",
+            model: "Product_Category",
             select: "_id name",
           },
         })

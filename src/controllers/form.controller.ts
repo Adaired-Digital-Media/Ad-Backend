@@ -43,7 +43,6 @@ export const createForm = async (
       form: populatedForm,
     });
   } catch (error: any) {
-    console.log(error);
     if (error instanceof CustomError) {
       next(new CustomError(500, "Error creating form"));
     }

@@ -1,4 +1,4 @@
-import mongoose, { Types, Schema, Document, Model } from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 export type ProductTypes = {
   _id: Types.ObjectId;
@@ -21,7 +21,7 @@ export type ProductTypes = {
   metaTitle?: string;
   metaDescription?: string;
   canonicalLink?: string;
-  status: "Active" | "Inactive" | "Archived" | "Out of Stock";
+  status: "active" | "inactive" | "archived" | "out of stock";
   isFreeProduct: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -30,21 +30,15 @@ export type ProductTypes = {
 };
 
 export interface CategoryTypes {
+  parentCategory: mongoose.Types.ObjectId | null;
+  subCategories: mongoose.Types.ObjectId[];
+  image: string;
   name: string;
-  description?: string;
-  parentCategory?: Types.ObjectId;
-  children?: Types.ObjectId[];
-  products?: Types.ObjectId[];
   slug: string;
-  image?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  canonicalLink?: string;
-  status: "Active" | "Inactive" | "Archived";
-  createdBy?: Types.ObjectId;
-  updatedBy?: Types.ObjectId;
-  createdAt?: Date;
-  updatedAt?: Date;
+  status: "active" | "inactive";
+  products: mongoose.Types.ObjectId[];
+  createdBy?: mongoose.Types.ObjectId;
+  updatedBy?: mongoose.Types.ObjectId;
 }
 
 export interface Option {

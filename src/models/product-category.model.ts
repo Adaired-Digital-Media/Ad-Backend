@@ -1,16 +1,16 @@
 import mongoose, { Schema } from "mongoose";
-import { BlogCategoryType } from "../types/blog-category.types";
+import { CategoryTypes } from "../types/productTypes";
 
-const blogCategorySchema = new Schema<BlogCategoryType>(
+const productCategorySchema = new Schema<CategoryTypes>(
   {
     parentCategory: {
       type: Schema.Types.ObjectId,
-      ref: "Blog_Category",
+      ref: "Product_Category",
       default: null,
     },
     subCategories: {
       type: [Schema.Types.ObjectId],
-      ref: "Blog_Category",
+      ref: "Product_Category",
       default: [],
     },
     image: {
@@ -32,9 +32,9 @@ const blogCategorySchema = new Schema<BlogCategoryType>(
       enum: ["active", "inactive"],
       default: "active",
     },
-    blogs: {
+    products: {
       type: [Schema.Types.ObjectId],
-      ref: "Blog",
+      ref: "Product",
       default: [],
     },
     createdBy: {
@@ -51,8 +51,9 @@ const blogCategorySchema = new Schema<BlogCategoryType>(
   { timestamps: true }
 );
 
-const Blog_Category = mongoose.model<BlogCategoryType>(
-  "Blog_Category",
-  blogCategorySchema
+const Product_Category = mongoose.model<CategoryTypes>(
+  "Product_Category",
+  productCategorySchema
 );
-export default Blog_Category;
+
+export default Product_Category;

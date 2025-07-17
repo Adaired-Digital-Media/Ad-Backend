@@ -2,7 +2,6 @@ import express, { Router } from "express";
 import {
   createCategory,
   deleteCategory,
-  duplicateCategory,
   readCategories,
   updateCategory,
 } from "../controllers/product-category.controller";
@@ -28,6 +27,5 @@ router.patch(
   updateCategory
 );
 router.delete("/delete-category", verifyToken, deleteCategory);
-router.post("/duplicate-category", verifyToken, duplicateCategory);
 
 export default router;

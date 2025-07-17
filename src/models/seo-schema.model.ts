@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import { Schema } from "mongoose";
 import slugify from "slugify";
 
 const cleanCanonicalLink = (input: string): string => {
@@ -6,21 +6,26 @@ const cleanCanonicalLink = (input: string): string => {
 
   // Handle base URL
   if (input.startsWith(process.env.LIVE_DOMAIN || "")) {
-    return input.replace(process.env.LIVE_DOMAIN, "").replace(/^\/+/, "");
+    return input
+      .replace(process.env.LIVE_DOMAIN, "")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, ""); // Trim trailing slashes too
   }
 
   // Handle full URLs
   if (input.includes("://")) {
     try {
       const url = new URL(input);
-      return url.pathname.replace(/^\/+/, "").split("/").pop() || "";
+      return url.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
     } catch {
       return slugify(input, { lower: true, strict: true });
     }
   }
-
   // Handle slugs directly
-  return slugify(input, { lower: true, strict: true });
+  return input
+    .split("/") 
+    .map((part) => slugify(part, { lower: true, strict: true })) 
+    .join("/"); 
 };
 
 const seoSchema = new Schema({

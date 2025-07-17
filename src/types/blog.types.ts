@@ -6,12 +6,13 @@ export interface BlogTypes extends Document {
   featuredImage: string;
   postTitle: string;
   postDescription: string;
-  slug: string | null;
+  slug: string;
   tags: string[];
   seo: SEO;
   blogAuthor?: mongoose.Types.ObjectId | null;
   updatedBy?: mongoose.Types.ObjectId | null;
-  status: "publish" | "draft";
+  status: "publish" | "draft" | "scheduled";
+  scheduledPublishDate?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
