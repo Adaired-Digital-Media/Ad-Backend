@@ -51,8 +51,13 @@ const blogSchema = new Schema<BlogTypes>(
     },
     status: {
       type: String,
-      enum: ["publish", "draft"],
+      enum: ["publish", "draft", "scheduled"],
       default: "draft",
+      index: true,
+    },
+    scheduledPublishDate: {
+      type: Date,
+      default: null,
       index: true,
     },
   },

@@ -14,7 +14,8 @@ import { hasSeoFields } from "../models/seo-schema.model";
 const newBlog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId, body } = req;
-    const { postTitle, slug, category, postDescription } = body;
+    const { postTitle, slug, category, postDescription, scheduledPublishDate } =
+      body;
 
     // Check permissions
     const permissionCheck = await checkPermission(userId, "blogs", 0);
@@ -36,6 +37,25 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
       const categoryExists = await Blog_Category.findById(category);
       if (!categoryExists) {
         throw new CustomError(400, "Invalid category ID");
+      }
+    }
+
+    // Validate scheduledPublishDate if status is "scheduled"
+    if (body.status === "scheduled" && !scheduledPublishDate) {
+      throw new CustomError(
+        400,
+        "Scheduled publish date is required when status is set to 'scheduled'"
+      );
+    }
+
+    // Validate scheduledPublishDate if provided
+    if (scheduledPublishDate) {
+      const publishDate = new Date(scheduledPublishDate);
+      if (isNaN(publishDate.getTime()) || publishDate <= new Date()) {
+        throw new CustomError(
+          400,
+          "Scheduled publish date must be a valid future date"
+        );
       }
     }
 
@@ -67,6 +87,10 @@ const newBlog = async (req: Request, res: Response, next: NextFunction) => {
       blogAuthor: userId,
       updatedBy: userId,
       category: category || null,
+      status: scheduledPublishDate ? "scheduled" : body.status || "draft",
+      scheduledPublishDate: scheduledPublishDate
+        ? new Date(scheduledPublishDate)
+        : null,
     };
 
     const newBlog = await Blog.create(newBlogData);
@@ -110,7 +134,7 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
     } else if (status && typeof status === "string") {
       query.status = status;
     }
-    
+
     if (category && typeof category === "string") {
       const categoryExists = await Blog_Category.findById(category);
       if (!categoryExists) {
@@ -145,9 +169,6 @@ const readBlog = async (req: Request, res: Response, next: NextFunction) => {
     queryBuilder.skip(numericSkip);
 
     const blogs = await queryBuilder.exec();
-
-    // Get total count for pagination info (without limit/skip)
-    const totalCount = await Blog.countDocuments(query);
 
     res.status(200).json({
       success: true,
@@ -197,6 +218,25 @@ const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
       const categoryExists = await Blog_Category.findById(body.category);
       if (!categoryExists) {
         throw new CustomError(400, "Invalid category ID");
+      }
+    }
+
+    // Validate scheduledPublishDate if status is "scheduled"
+    if (body.status === "scheduled" && !body.scheduledPublishDate) {
+      throw new CustomError(
+        400,
+        "Scheduled publish date is required when status is set to 'scheduled'"
+      );
+    }
+
+    // Validate scheduledPublishDate if provided
+    if (body.scheduledPublishDate) {
+      const publishDate = new Date(body.scheduledPublishDate);
+      if (isNaN(publishDate.getTime()) || publishDate <= new Date()) {
+        throw new CustomError(
+          400,
+          "Scheduled publish date must be a valid future date"
+        );
       }
     }
 
@@ -264,6 +304,12 @@ const updateBlog = async (req: Request, res: Response, next: NextFunction) => {
         postTitle: sanitizedPostTitle,
         postDescription: sanitizedPostDescription,
         updatedBy: userId,
+        status: body.scheduledPublishDate
+          ? "scheduled"
+          : body.status || blog.status,
+        scheduledPublishDate: body.scheduledPublishDate
+          ? new Date(body.scheduledPublishDate)
+          : blog.scheduledPublishDate,
       },
       { new: true }
     );

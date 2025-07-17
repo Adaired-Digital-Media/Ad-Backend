@@ -84,10 +84,11 @@ export const validatePermissionModuleUpdate = [
   check("status").optional().isBoolean().default(true),
 ];
 
-// *********** Blogs **********
+// ***********************************************************************************************************************************************************
+// ******************************************************************* Blogs *********************************************************************************
+// ***********************************************************************************************************************************************************
 
 export const validateBlog = [
-  // SEO Fields
   check("seo.metaTitle", "SEO meta title is required")
     .notEmpty()
     .isString()
@@ -122,9 +123,10 @@ export const validateBlog = [
     .optional()
     .isString()
     .trim(),
-  check("seo.openGraph.image", "Open Graph image must be a valid URL")
-    .optional()
+  check("seo.openGraph.image")
+    .if((value) => value !== undefined && value !== null && value !== "")
     .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("Open Graph image must be a valid URL")
     .trim(),
   check("seo.openGraph.type", "Open Graph type must be a string")
     .optional()
@@ -153,12 +155,16 @@ export const validateBlog = [
     .optional()
     .isString()
     .trim(),
-  check("seo.twitterCard.description", "Twitter card description must be a string")
+  check(
+    "seo.twitterCard.description",
+    "Twitter card description must be a string"
+  )
     .optional()
     .isString()
     .trim(),
   check("seo.twitterCard.image", "Twitter card image must be a valid URL")
-    .optional()
+    .if((value) => value !== undefined && value !== null && value !== "")
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
   check("seo.robotsText", "SEO robots text is required")
     .notEmpty()
@@ -185,13 +191,21 @@ export const validateBlog = [
     .isFloat({ min: 0, max: 1 }),
   check("seo.changeFrequency", "SEO change frequency must be valid")
     .optional()
-    .isIn(["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]),
+    .isIn([
+      "always",
+      "hourly",
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "never",
+    ]),
   check("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
     .optional()
     .isIn(["301", "302", null]),
   check("seo.redirect.url", "SEO redirect URL must be a valid URL")
-    .optional()
-    // .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .if((value) => value !== undefined && value !== null && value !== "")
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
 
   // Blog Fields
@@ -202,17 +216,11 @@ export const validateBlog = [
     .notEmpty()
     .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
-  check("postTitle", "Post title is required")
-    .notEmpty()
-    .isString()
-    .trim(),
+  check("postTitle", "Post title is required").notEmpty().isString().trim(),
   check("postDescription", "Post description is required")
     .notEmpty()
     .isString(),
-  check("slug", "Slug must be a valid string")
-    .optional()
-    .isString()
-    .trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
   check("tags", "Tags must be an array of strings")
     .optional()
     .isArray()
@@ -225,13 +233,12 @@ export const validateBlog = [
   check("blogAuthor", "Blog author must be a valid MongoDB ID")
     .optional()
     .isMongoId(),
-  check("status", "Status must be either 'publish' or 'draft'")
+  check("status", "Status must be either 'publish' , 'draft' or 'scheduled")
     .optional()
-    .isIn(["publish", "draft"]),
+    .isIn(["publish", "draft","scheduled"]),
 ];
 
 export const validateUpdateBlog = [
-  // SEO Fields
   check("seo.metaTitle", "SEO meta title must be a string")
     .optional()
     .isString()
@@ -266,16 +273,17 @@ export const validateUpdateBlog = [
     .optional()
     .isString()
     .trim(),
-  check("seo.openGraph.image", "Open Graph image must be a valid URL")
-    .optional()
+  check("seo.openGraph.image")
+    .if((value) => value !== undefined && value !== null && value !== "")
     .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("Open Graph image must be a valid URL")
     .trim(),
   check("seo.openGraph.type", "Open Graph type must be a string")
     .optional()
     .isString()
     .trim(),
   check("seo.openGraph.url", "Open Graph URL must be a valid URL")
-    .optional()
+    .if((value) => value !== undefined && value !== null && value !== "")
     .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
   check("seo.openGraph.siteName", "Open Graph site name must be a string")
@@ -298,12 +306,15 @@ export const validateUpdateBlog = [
     .optional()
     .isString()
     .trim(),
-  check("seo.twitterCard.description", "Twitter card description must be a string")
+  check(
+    "seo.twitterCard.description",
+    "Twitter card description must be a string"
+  )
     .optional()
     .isString()
     .trim(),
   check("seo.twitterCard.image", "Twitter card image must be a valid URL")
-    .optional()
+    .if((value) => value !== undefined && value !== null && value !== "")
     .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
   check("seo.robotsText", "SEO robots text must be a string")
@@ -331,13 +342,21 @@ export const validateUpdateBlog = [
     .isFloat({ min: 0, max: 1 }),
   check("seo.changeFrequency", "SEO change frequency must be valid")
     .optional()
-    .isIn(["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]),
+    .isIn([
+      "always",
+      "hourly",
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "never",
+    ]),
   check("seo.redirect.type", "SEO redirect type must be '301', '302', or null")
     .optional()
     .isIn(["301", "302", null]),
   check("seo.redirect.url", "SEO redirect URL must be a valid URL")
-    .optional()
-    // .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .if((value) => value !== undefined && value !== null && value !== "")
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
     .trim(),
 
   // Blog Fields
@@ -355,10 +374,7 @@ export const validateUpdateBlog = [
   check("postDescription", "Post description must be a string")
     .optional()
     .isString(),
-  check("slug", "Slug must be a valid string")
-    .optional()
-    .isString()
-    .trim(),
+  check("slug", "Slug must be a valid string").optional().isString().trim(),
   check("tags", "Tags must be an array of strings")
     .optional()
     .isArray()
@@ -374,16 +390,15 @@ export const validateUpdateBlog = [
   check("updatedBy", "Updated by must be a valid MongoDB ID")
     .optional()
     .isMongoId(),
-  check("status", "Status must be either 'publish' or 'draft'")
+  check("status", "Status must be either 'publish' , 'draft' or 'scheduled")
     .optional()
-    .isIn(["publish", "draft"]),
+    .isIn(["publish", "draft","scheduled"]),
 ];
 // ******************** Blog Categories ********************
 
 export const validateBlogCategoryCreate = [
   // parentCategory: Optional, must be a valid MongoDB ObjectID
-  check("parentCategory")
-    .optional(),
+  check("parentCategory").optional(),
 
   // subCategories: Optional, must be an array of valid MongoDB ObjectIDs
   check("subCategories")
@@ -400,9 +415,7 @@ export const validateBlogCategoryCreate = [
     })
     .withMessage("All subcategory IDs must be valid MongoDB ObjectIDs"),
 
-  check("image")
-    .optional()
-    .trim(),
+  check("image").optional().trim(),
 
   // name: Required, string, max 100 characters, unique (handled by Mongoose)
   check("name")
@@ -431,56 +444,6 @@ export const validateBlogCategoryCreate = [
     .optional()
     .isIn(["active", "inactive"])
     .withMessage("Status must be either 'active' or 'inactive'"),
-
-  // blogs: Optional, must be an array of valid MongoDB ObjectIDs
-  check("blogs")
-    .optional()
-    .isArray()
-    .withMessage("Blogs must be an array")
-    .custom((value) => {
-      if (value.length > 0) {
-        return value.every((id: Types.ObjectId) =>
-          mongoose.isValidObjectId(id)
-        );
-      }
-      return true;
-    })
-    .withMessage("All blog IDs must be valid MongoDB ObjectIDs"),
-
-  // metaTitle: Optional, string, max 60 characters (SEO best practice)
-  check("metaTitle")
-    .optional()
-    .isString()
-    .withMessage("Meta title must be a string")
-    .isLength({ max: 60 })
-    .withMessage("Meta title must not exceed 60 characters")
-    .trim()
-    .escape(),
-
-  // metaDescription: Optional, string, max 160 characters (SEO best practice)
-  check("metaDescription")
-    .optional()
-    .isString()
-    .withMessage("Meta description must be a string")
-    .isLength({ max: 160 })
-    .withMessage("Meta description must not exceed 160 characters")
-    .trim()
-    .escape(),
-
-  // canonicalLink: Optional, must be a valid URL if provided
-  check("canonicalLink").optional().trim(),
-
-  // createdBy: Optional, must be a valid MongoDB ObjectID
-  check("createdBy")
-    .optional()
-    .isMongoId()
-    .withMessage("Created by must be a valid MongoDB ObjectID"),
-
-  // updatedBy: Optional, must be a valid MongoDB ObjectID
-  check("updatedBy")
-    .optional()
-    .isMongoId()
-    .withMessage("Updated by must be a valid MongoDB ObjectID"),
 ];
 
 export const validateBlogCategoryUpdate = [
@@ -694,49 +657,6 @@ export const ValidateUpdateService = [
 ];
 
 // ********** Case Studies **********
-
-// export const validateCaseStudyCategory = [
-//   check("categoryName", "Category name is required")
-//     .notEmpty()
-//     .isString()
-//     .trim(),
-//   check("categorySlug", "Category slug is required")
-//     .notEmpty()
-//     .isString()
-//     .trim(),
-//   check("technologies")
-//     .optional()
-//     .isArray()
-//     .withMessage("Technologies must be an array"),
-//   check("technologies.*.icon", "Technology icon is required")
-//     .if(
-//       (value, { req }) =>
-//         req.body.technologies && req.body.technologies.length > 0
-//     )
-//     .notEmpty()
-//     .isString()
-//     .trim(),
-//   check("technologies.*.name", "Technology name is required")
-//     .if(
-//       (value, { req }) =>
-//         req.body.technologies && req.body.technologies.length > 0
-//     )
-//     .notEmpty()
-//     .isString()
-//     .trim(),
-//   check("caseStudies")
-//     .optional()
-//     .isArray()
-//     .withMessage("Case studies must be an array"),
-//   check("caseStudies.*.caseStudyId", "Case study ID must be a valid Mongo ID")
-//     .if(
-//       (value, { req }) =>
-//         req.body.caseStudies && req.body.caseStudies.length > 0
-//     )
-//     .isMongoId(),
-//   check("status", "Status must be a boolean").optional().isBoolean(),
-// ];
-
 export const validateCaseStudyUpdateCategory = [
   check("categoryName", "Category name is required")
     .optional()
@@ -885,9 +805,9 @@ export const validateCreateProduct = [
 
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Archived", "Out of Stock"])
+    .isIn(["active", "inactive", "archived", "out of stock"])
     .withMessage(
-      "Status must be one of Active, Inactive, Archived, or Out of Stock"
+      "Status must be one of active, inactive, archived, or out of stock"
     ),
 
   check("isFeatured")
@@ -987,9 +907,9 @@ export const validateUpdateProduct = [
 
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Archived", "Out of Stock"])
+    .isIn(["active", "inactive", "archived", "out of stock"])
     .withMessage(
-      "Status must be one of Active, Inactive, Archived, or Out of Stock"
+      "Status must be one of active, inactive, archived, or out of stock"
     ),
 
   check("isFeatured")
@@ -999,81 +919,53 @@ export const validateUpdateProduct = [
 ];
 
 export const validateProductCreateCategory = [
+  // parentCategory: Optional, must be a valid MongoDB ObjectID
+  check("parentCategory").optional(),
+
+  // subCategories: Optional, must be an array of valid MongoDB ObjectIDs
+  check("subCategories")
+    .optional()
+    .isArray()
+    .withMessage("Subcategories must be an array")
+    .custom((value) => {
+      if (value.length > 0) {
+        return value.every((id: Types.ObjectId) =>
+          mongoose.isValidObjectId(id)
+        );
+      }
+      return true;
+    })
+    .withMessage("All subcategory IDs must be valid MongoDB ObjectIDs"),
+
+  check("image").optional().trim(),
+
+  // name: Required, string, max 100 characters, unique (handled by Mongoose)
   check("name")
-    .isString()
-    .withMessage("Category name is required")
     .notEmpty()
-    .withMessage("Category name should not be empty"),
-
-  check("description")
-    .optional()
+    .withMessage("Name is required")
     .isString()
-    .withMessage("Description should be a string"),
-
-  check("parentCategory")
-    .optional({ values: "null" })
-    .isMongoId()
-    .withMessage("Invalid parent category ID format"),
-
-  check("children")
-    .optional()
-    .isArray()
-    .withMessage("Children should be an array of category IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each child category ID should be a valid ObjectId"),
-
-  check("products")
-    .optional()
-    .isArray()
-    .withMessage("Products should be an array of product IDs")
-    .custom((value) =>
-      value.every((v: any) => mongoose.Types.ObjectId.isValid(v))
-    )
-    .withMessage("Each product ID should be a valid ObjectId"),
-
-  check("slug")
-    .optional()
-    .isString()
-    .withMessage("Slug should be a string")
+    .withMessage("Name must be a string")
     .isLength({ max: 100 })
-    .withMessage("Slug should not exceed 100 characters"),
+    .withMessage("Name must not exceed 100 characters")
+    .trim()
+    .escape(),
 
-  check("image")
-    .optional()
+  // slug: Required, string, max 100 characters, URL-friendly, unique (handled by Mongoose)
+  check("slug")
+    .notEmpty()
+    .withMessage("Slug is required")
     .isString()
-    .withMessage("Image URL should be a string"),
+    .withMessage("Slug must be a string")
+    .isLength({ max: 100 })
+    .withMessage("Slug must not exceed 100 characters")
+    .trim()
+    .toLowerCase(),
 
-  check("metaTitle")
-    .optional()
-    .isString()
-    .withMessage("Meta title should be a string"),
-
-  check("metaDescription")
-    .optional()
-    .isString()
-    .withMessage("Meta description should be a string"),
-
-  check("canonicalLink")
-    .optional()
-    .isString()
-    .withMessage("Canonical link should be a string"),
-
+  // status: Optional, must be 'publish' or 'draft'
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Draft"])
-    .withMessage("Status must be one of 'Active', 'Inactive', or 'Draft'"),
-
-  check("createdBy")
-    .optional()
-    .isMongoId()
-    .withMessage("Invalid user ID format"),
-
-  check("updatedBy")
-    .optional()
-    .isMongoId()
-    .withMessage("Invalid user ID format"),
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either 'active' or 'inactive'"),
 ];
 
 export const validateProductUpdateCategory = [
@@ -1090,7 +982,7 @@ export const validateProductUpdateCategory = [
     .withMessage("Description should be a string"),
 
   check("parentCategory")
-    .optional()
+    .optional({ nullable: true })
     .isMongoId()
     .withMessage("Invalid parent category ID format"),
 
@@ -1141,8 +1033,8 @@ export const validateProductUpdateCategory = [
 
   check("status")
     .optional()
-    .isIn(["Active", "Inactive", "Draft"])
-    .withMessage("Status must be one of 'Active', 'Inactive', or 'Draft'"),
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be one of 'active' or 'inactive'"),
 
   check("createdBy")
     .optional()

@@ -4,8 +4,8 @@ import { CustomError } from "../middlewares/error";
 import { checkPermission } from "../helpers/authHelper";
 import { validateInput } from "../utils/validateInput";
 import { NextFunction, Request, Response } from "express";
-import Product from "../models/productModel";
-import ProductCategory from "../models/productCategoryModel";
+import Product from "../models/product.model";
+import Product_Category from "../models/product-category.model";
 
 // Helper function to validate discount against minimum order amount
 const validateDiscountVsMinOrder = (coupon: any) => {
@@ -442,7 +442,7 @@ export const calculateCouponDiscount = async (
             : [],
         productCategories:
           coupon.couponApplicableOn === "productCategories"
-            ? await ProductCategory.find({
+            ? await Product_Category.find({
                 _id: { $in: coupon.productCategories },
               }).select("name")
             : [],

@@ -8,13 +8,13 @@ const ProductSchema = new Schema<ProductTypes>(
     description: { type: String },
     category: {
       type: Schema.Types.ObjectId,
-      ref: "ProductCategory",
+      ref: "Product_Category",
       required: true,
     },
     subCategory: [
       {
         type: Schema.Types.ObjectId,
-        ref: "ProductCategory",
+        ref: "Product_Category",
         default: null,
       },
     ],
@@ -38,8 +38,8 @@ const ProductSchema = new Schema<ProductTypes>(
     canonicalLink: { type: String },
     status: {
       type: String,
-      enum: ["Active", "Inactive", "Archived", "Out of Stock"],
-      default: "Active",
+      enum: ["active", "inactive", "archived", "out of stock"],
+      default: "active",
     },
     isFreeProduct: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },

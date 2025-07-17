@@ -20,18 +20,18 @@ export interface TicketMessage {
 }
 
 export enum TicketStatus {
-  OPEN = "Open",
-  IN_PROGRESS = "In Progress",
-  RESOLVED = "Resolved",
-  CLOSED = "Closed",
-  REOPENED = "Reopened"
+  OPEN = "open",
+  IN_PROGRESS = "in progress",
+  RESOLVED = "resolved",
+  CLOSED = "closed",
+  REOPENED = "reopened"
 }
 
 export enum TicketPriority {
-  LOW = "Low",
-  MEDIUM = "Medium",
-  HIGH = "High",
-  URGENT = "Urgent"
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  URGENT = "urgent"
 }
 
 export interface TicketMetadata {

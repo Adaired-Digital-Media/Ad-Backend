@@ -382,7 +382,11 @@ export const getInvoices = async (
         .lean();
     }
 
-    res.status(200).json({ data: invoices });
+    res.status(200).json({
+      success: true,
+      message: "Invoices fetched successfully",
+      data: invoices,
+    });
   } catch (error) {
     next(
       new CustomError(
@@ -424,9 +428,11 @@ export const updateInvoice = async (
       return res.status(404).json({ message: "Invoice not found." });
     }
 
-    res
-      .status(200)
-      .json({ message: "Invoice updated successfully.", data: updatedInvoice });
+    res.status(200).json({
+      success: true,
+      message: "Invoice updated successfully.",
+      data: updatedInvoice,
+    });
   } catch (error) {
     next(
       new CustomError(
@@ -466,7 +472,9 @@ export const deleteInvoice = async (
       { invoiceId: null }
     );
 
-    res.status(200).json({ message: "Invoice deleted successfully." });
+    res
+      .status(200)
+      .json({ success: true, message: "Invoice deleted successfully." });
   } catch (error) {
     next(
       new CustomError(
@@ -502,7 +510,7 @@ export const getInvoicesByUserId = async (
             path: "products.product",
             populate: {
               path: "category",
-              model: "ProductCategory",
+              model: "Product_Category",
               select: "_id name",
             },
           },
@@ -523,7 +531,7 @@ export const getInvoicesByUserId = async (
             path: "products.product",
             populate: {
               path: "category",
-              model: "ProductCategory",
+              model: "Product_Category",
               select: "_id name",
             },
           },
@@ -532,7 +540,11 @@ export const getInvoicesByUserId = async (
         .lean();
     }
 
-    res.status(200).json({ data: invoices });
+    res.status(200).json({
+      success: true,
+      message: "Invoice fetched successfully",
+      data: invoices,
+    });
   } catch (error) {
     next(
       new CustomError(
@@ -751,6 +763,8 @@ export const getInvoiceStats = async (
     });
 
     const response = {
+      success: true,
+      message: "Invoices stats fetched successfully",
       newInvoices: {
         count: currentMonthNewInvoices,
         percentageChange: Number(newInvoicesChange.toFixed(2)),
@@ -886,7 +900,6 @@ export const downloadInvoicePDF = async (
     });
 
     // Ensure images are loaded
-    console.log("[downloadInvoicePDF] Waiting for images to load...");
     const imageResults = await page.evaluate(() => {
       const images = Array.from(document.querySelectorAll("img"));
       return Promise.all(

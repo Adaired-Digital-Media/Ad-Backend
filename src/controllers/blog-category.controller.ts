@@ -19,7 +19,7 @@ export const newBlogCategory = async (
     const { name, slug, parentCategory } = body;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "blog-categories", 0);
+    const permissionCheck = await checkPermission(userId, "blogs", 0);
     if (!permissionCheck) return;
 
     // Validate user input
@@ -51,7 +51,8 @@ export const newBlogCategory = async (
       createdBy: userId,
       updatedBy: userId,
     };
-    const newCategory = await Blog_Category.create(newCategoryData);
+
+    let newCategory = await Blog_Category.create(newCategoryData);
 
     // Update parent's subcategories if applicable
     if (parentCategory) {
@@ -60,9 +61,16 @@ export const newBlogCategory = async (
       });
     }
 
+    // Populate parent category for response
+    const newCategoryLean = await Blog_Category
+      .findById(newCategory._id)
+      .populate("parentCategory", "name slug")
+      .lean();
+      
+
     res.status(201).json({
       message: "New blog category created successfully",
-      data: newCategory,
+      data: newCategoryLean,
     });
   } catch (error: any) {
     // Handle validation errors
@@ -133,7 +141,7 @@ export const updateBlogCategory = async (
     const { id } = query;
 
     // Check permissions
-    const permissionCheck = await checkPermission(userId, "blog-categories", 2);
+    const permissionCheck = await checkPermission(userId, "blog", 2);
     if (!permissionCheck) return;
 
     // Validate input
@@ -232,11 +240,6 @@ export const deleteBlogCategory = async (
     // Check permissions
     const permissionCheck = await checkPermission(userId, "blog-categories", 3);
     if (!permissionCheck) return;
-
-    // Validate ID
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new CustomError(400, "Valid category ID is required");
-    }
 
     // Check if category exists
     const category = await Blog_Category.findById(id);

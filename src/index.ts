@@ -20,7 +20,7 @@ import case_study_category_routes from "./routes/case-study-category.routes";
 import serviceRoute from "./routes/service.routes";
 import productRoute from "./routes/product.routes";
 import productFormRoute from "./routes/form.routes";
-import productCategoryRoute from "./routes/productCategory.routes";
+import productCategoryRoute from "./routes/product-category.routes";
 import cartRoute from "./routes/cart.routes";
 import orderRoute from "./routes/order.routes";
 import couponRoute from "./routes/coupon.routes";
@@ -29,6 +29,7 @@ import invoiceRoutes from "./routes/invoices.routes";
 import pageSEORoute from "./routes/static-pages-seo.routes";
 
 import { emptyCartJob } from "./cron-jobs/empty-cart";
+import scheduleBlogs from "./cron-jobs/post-scheduled-blog";
 
 dotenv.config();
 
@@ -140,6 +141,7 @@ const startServer = async () => {
 
     // Start background jobs
     emptyCartJob.start();
+    scheduleBlogs();
     console.log("⏱️ Cron jobs initialized");
 
     return server;

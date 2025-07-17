@@ -1,5 +1,5 @@
 import Cart from "../models/cartModel";
-import Product from "../models/productModel";
+import Product from "../models/product.model";
 import Order from "../models/orderModel";
 import {checkPermission} from "../helpers/authHelper";
 import { NextFunction, Request, Response } from "express";

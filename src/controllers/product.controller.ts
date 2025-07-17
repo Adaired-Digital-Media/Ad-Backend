@@ -1,4 +1,4 @@
-import Product from "../models/productModel";
+import Product from "../models/product.model";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
@@ -6,7 +6,7 @@ import {checkPermission} from "../helpers/authHelper";
 import { ProductTypes } from "../types/productTypes";
 import { validationResult } from "express-validator";
 import { Types } from "mongoose";
-import ProductCategory from "../models/productCategoryModel";
+import Product_Category from "../models/product-category.model";
 
 // Helper function to validate user input
 const validateInput = (req: Request, res: Response) => {
@@ -53,7 +53,7 @@ const updateProductInCategories = async (
   // Remove product from old category
   if (oldCategoryId) {
     updates.push(
-      ProductCategory.updateOne(
+      Product_Category.updateOne(
         { _id: oldCategoryId },
         { $pull: { products: productId } }
       )
@@ -63,7 +63,7 @@ const updateProductInCategories = async (
   // Remove product from old subcategories
   if (oldSubCategoryIds && oldSubCategoryIds.length > 0) {
     updates.push(
-      ProductCategory.updateMany(
+      Product_Category.updateMany(
         { _id: { $in: oldSubCategoryIds } },
         { $pull: { products: productId } }
       )
@@ -73,7 +73,7 @@ const updateProductInCategories = async (
   // Add product to new category
   if (newCategoryId) {
     updates.push(
-      ProductCategory.updateOne(
+      Product_Category.updateOne(
         { _id: newCategoryId },
         { $push: { products: productId } }
       )
@@ -83,7 +83,7 @@ const updateProductInCategories = async (
   // Add product to new subcategories
   if (newSubCategoryIds && newSubCategoryIds.length > 0) {
     updates.push(
-      ProductCategory.updateMany(
+      Product_Category.updateMany(
         { _id: { $in: newSubCategoryIds } },
         { $push: { products: productId } }
       )
@@ -140,11 +140,11 @@ export const createProduct = async (
         ? subCategory
         : [subCategory];
       for (const subCatId of subCategoryInput) {
-        const subcategory = await ProductCategory.findById(subCatId);
+        const subcategory = await Product_Category.findById(subCatId);
         if (!subcategory) {
           throw new CustomError(404, `Subcategory ${subCatId} not found`);
         }
-        const parentCat = await ProductCategory.findById(
+        const parentCat = await Product_Category.findById(
           subcategory.parentCategory
         );
         if (!parentCat) {
@@ -224,6 +224,7 @@ export const readProducts = async (
     } else {
       const products = await Product.find()
         .populate("createdBy category subCategory")
+        .sort({ createdAt: -1 })
         .lean();
       return res.status(200).json({
         message: "All products",
@@ -280,11 +281,11 @@ export const updateProduct = async (
         : [body.subCategory];
 
       for (const subCatId of subCategoryInput) {
-        const subcategory = await ProductCategory.findById(subCatId);
+        const subcategory = await Product_Category.findById(subCatId);
         if (!subcategory) {
           throw new CustomError(404, `Subcategory ${subCatId} not found`);
         }
-        const parentCat = await ProductCategory.findById(
+        const parentCat = await Product_Category.findById(
           subcategory.parentCategory
         );
         if (!parentCat) {

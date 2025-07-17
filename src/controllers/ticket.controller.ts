@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import TicketModel from "../models/ticket.model";
 import { CustomError } from "../middlewares/error";
 import {
-  
-
   uploadTicketAttachments,
   deleteTicketAttachments,
 } from "../utils/cloudinary";
@@ -62,7 +60,8 @@ export const createTicket = async (
     if (!validateInput(req, res)) return;
 
     const { userId, body, files } = req;
-    const { subject,status, description, priority, customer, assignedTo } = body;
+    const { subject, status, description, priority, customer, assignedTo } =
+      body;
 
     const user = await User.findById(userId).populate("role");
     if (!user) throw new CustomError(404, "User not found");
@@ -143,7 +142,7 @@ export const createTicket = async (
     const newTicket = await TicketModel.create({
       subject,
       description,
-      status: status ||TicketStatus.OPEN,
+      status: status || TicketStatus.OPEN,
       priority: priority || TicketPriority.MEDIUM,
       createdBy: userId,
       assignedTo: finalAssignedTo,
@@ -246,6 +245,7 @@ export const getTickets = async (
 
     res.status(200).json({
       success: true,
+      message: "Tickets fetched successfully",
       data: tickets,
       pagination: {
         total,
@@ -284,7 +284,7 @@ export const getTicketStats = async (
         role: userType,
         stats: {
           // Will be populated below
-        }
+        },
       },
     };
 
@@ -379,8 +379,6 @@ export const updateTicket = async (
     const { id } = req.query;
     const { message, status, priority, assignedTo } = body;
 
-    console.log(body, files);
-
     // Validate permissions based on action type
     const action =
       status === TicketStatus.CLOSED ? "close" : message ? "message" : "update";
@@ -427,8 +425,6 @@ export const updateTicket = async (
           "Only ticket participants can message this ticket"
         );
       }
-
-      console.log(hasUpdatePermission)
       const attachments =
         files && Array.isArray(files)
           ? await uploadTicketAttachments(files)

@@ -53,7 +53,7 @@ const CouponSchema = new Schema<CouponTypes>(
       default: [],
     },
     productCategories: {
-      type: [{ type: Schema.Types.ObjectId, ref: "ProductCategory" }],
+      type: [{ type: Schema.Types.ObjectId, ref: "Product_Category" }],
       default: [],
     },
     minQuantity: {
