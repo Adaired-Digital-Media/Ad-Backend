@@ -36,13 +36,29 @@ export const validateRegister = [
 ];
 
 export const validateLogin = [
-  check("email", "Email is required")
-    .isEmail()
-    .normalizeEmail({
-      gmail_remove_dots: true,
-    })
-    .trim(),
-  check("password", "Password is required").notEmpty(),
+  body().custom((value, { req }) => {
+    if (!req.body.googleId) {
+      if (!req.body.identifier) {
+        throw new Error("Email or Username is required");
+      }
+      if (!req.body.password) {
+        throw new Error("Password is required");
+      }
+    }
+    return true;
+  }),
+  check("identifier")
+    .optional()
+    .custom((value) => {
+      if (value) {
+        const isEmail = /\S+@\S+\.\S+/.test(value);
+        const isUsername = /^[a-zA-Z0-9._-]{3,20}$/.test(value);
+        if (!isEmail && !isUsername) {
+          throw new Error("Identifier must be a valid email or username");
+        }
+      }
+      return true;
+    }),
   check("rememberMe").optional().isBoolean(),
 ];
 
@@ -235,7 +251,7 @@ export const validateBlog = [
     .isMongoId(),
   check("status", "Status must be either 'publish' , 'draft' or 'scheduled")
     .optional()
-    .isIn(["publish", "draft","scheduled"]),
+    .isIn(["publish", "draft", "scheduled"]),
 ];
 
 export const validateUpdateBlog = [
@@ -392,7 +408,7 @@ export const validateUpdateBlog = [
     .isMongoId(),
   check("status", "Status must be either 'publish' , 'draft' or 'scheduled")
     .optional()
-    .isIn(["publish", "draft","scheduled"]),
+    .isIn(["publish", "draft", "scheduled"]),
 ];
 // ******************** Blog Categories ********************
 

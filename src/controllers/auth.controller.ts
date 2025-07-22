@@ -8,6 +8,7 @@ import Cart from "../models/cartModel";
 import { sendEmail } from "../utils/mailer";
 import { validateInput } from "../utils/validateInput";
 import Role from "../models/role.model";
+import crypto from "crypto";
 
 // Token generation utilities
 const generateAccessToken = (userId: string): string =>
@@ -19,6 +20,11 @@ const generateRefreshToken = (userId: string): string =>
   jwt.sign({ _id: userId }, process.env.JWT_REFRESH_SECRET as string, {
     expiresIn: "30d",
   });
+
+// Utility to generate random secure password
+const generateRandomPassword = (): string => {
+  return crypto.randomBytes(16).toString("hex");
+};
 
 // ***************************************
 // ********** Register User **************
@@ -37,14 +43,31 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Check for existing user with lean for speed
-    if (await User.findOne({ email }).lean()) {
-      throw new CustomError(400, "User already exists");
+    if (
+      await User.findOne({
+        $or: [{ email }, { userName: email.split("@")[0].toLowerCase() }],
+      }).lean()
+    ) {
+      throw new CustomError(
+        400,
+        "User with this email or username already exists"
+      );
     }
 
-    // Hash password if provided
-    const hashedPassword = password
-      ? await bcrypt.hash(password, 10)
-      : undefined;
+    // Handle password for Google and regular users
+    let hashedPassword: string | undefined;
+    let randomPassword: string | undefined;
+
+    if (googleId) {
+      // For Google users, generate a random secure password
+      randomPassword = generateRandomPassword();
+      hashedPassword = await bcrypt.hash(randomPassword, 10);
+    } else if (password) {
+      // For regular users, use provided password
+      hashedPassword = await bcrypt.hash(password, 10);
+    } else {
+      throw new CustomError(400, "Password or Google ID required");
+    }
 
     // Create user with all fields in one go
     const user = new User({
@@ -56,6 +79,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       ...(contact && { contact }),
       ...(status && { status }),
       ...(googleId && { googleId }),
+      isVerifiedUser: googleId ? true : false, 
     });
 
     // Set admin status for first user
@@ -101,10 +125,20 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     // Save user and cart in parallel
     await Promise.all([user.save(), cart.save()]);
 
-    // Send verification email asynchronously
-    sendVerificationEmail(user._id.toString()).catch((err) =>
-      console.error("Email sending failed:", err)
-    );
+    // Handle email sending based on registration type
+    if (googleId && randomPassword) {
+      // Send email with random password for Google users
+      sendEmail(
+        user.email,
+        "Your Account Password",
+        `<p>Hi ${user.name},</p><p>Your account has been created using Google authentication.</p><p>You can also login using your username or email with this password: <strong>${randomPassword}</strong></p><p>Please store this password securely.</p>`
+      ).catch((err) => console.error("Email sending failed:", err));
+    } else {
+      // Send verification email for regular users
+      sendVerificationEmail(user._id.toString()).catch((err) =>
+        console.error("Email sending failed:", err)
+      );
+    }
 
     res.status(201).json({
       message: "User registered successfully",
@@ -122,20 +156,36 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 // ***************************************
 const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
+    console.log("Body : ", req.body)
+    const { identifier, password, googleId } = req.body;
 
     // Validate user input
     if (!validateInput(req, res)) return;
 
     // Fetch user with password and lean for speed
-    const user = await User.findOne({ email }).select("+password").lean();
-    if (!user) {
-      throw new CustomError(400, "User with this email does not exist.");
-    }
+    let user;
+    if (googleId) {
+      // Google login
+      user = await User.findOne({ googleId }).select("+password").lean();
+      if (!user) {
+        throw new CustomError(400, "User with this Google ID does not exist.");
+      }
+    } else {
+      // Email/username login
+      if (!identifier || !password) {
+        throw new CustomError(400, "Identifier and password are required.");
+      }
+      user = await User.findOne({
+        $or: [{ email: identifier }, { userName: identifier }],
+      }).select("+password").lean();
+      if (!user) {
+        throw new CustomError(400, "User with this email or username does not exist.");
+      }
 
-    // Verify password
-    if (!user.password || !(await bcrypt.compare(password, user.password))) {
-      throw new CustomError(401, "Incorrect Password!");
+      // Verify password
+      if (!user.password || !(await bcrypt.compare(password, user.password))) {
+        throw new CustomError(401, "Incorrect Password!");
+      }
     }
 
     // Generate tokens
@@ -250,9 +300,11 @@ const forgotPassword = async (
   next: NextFunction
 ) => {
   try {
-    const { email } = req.body;
+    const { identifier } = req.body;
 
-    const user = await User.findOne({ email }).select("name email").lean();
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { userName: identifier }],
+    }).select("name email").lean();
     if (!user) {
       throw new CustomError(404, "User not found");
     }

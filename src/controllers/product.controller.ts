@@ -2,24 +2,11 @@ import Product from "../models/product.model";
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error";
 import slugify from "slugify";
-import {checkPermission} from "../helpers/authHelper";
+import { checkPermission } from "../helpers/authHelper";
 import { ProductTypes } from "../types/productTypes";
-import { validationResult } from "express-validator";
 import { Types } from "mongoose";
 import Product_Category from "../models/product-category.model";
-
-// Helper function to validate user input
-const validateInput = (req: Request, res: Response) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    res.status(400).json({
-      message: "Invalid input",
-      errors: errors.array(),
-    });
-    return false;
-  }
-  return true;
-};
+import { validateInput } from "../utils/validateInput";
 
 // Helper function to check if a slug is unique
 const isSlugUnique = async (slug: string, excludeProductId?: string) => {
@@ -190,6 +177,7 @@ export const createProduct = async (
     );
 
     res.status(201).json({
+      success: true,
       message: "Product created successfully",
       data: createdProduct,
     });
@@ -227,7 +215,8 @@ export const readProducts = async (
         .sort({ createdAt: -1 })
         .lean();
       return res.status(200).json({
-        message: "All products",
+        success: true,
+        message: "All Products fetched successfully",
         data: products,
       });
     }
@@ -347,6 +336,7 @@ export const updateProduct = async (
     );
 
     res.status(200).json({
+      success: true,
       message: "Product updated successfully",
       data: updatedProduct,
     });
@@ -397,7 +387,11 @@ export const deleteProduct = async (
     // Delete the product
     await Product.findByIdAndDelete(product._id);
 
-    res.status(200).json({ message: "Product deleted successfully" });
+    res.status(200).json({
+      success: true,
+      message: "Product deleted successfully",
+      data: null,
+    });
   } catch (error: any) {
     next(new CustomError(500, error.message));
   }
@@ -458,6 +452,7 @@ export const duplicateProduct = async (
     );
 
     res.status(201).json({
+      success: true,
       message: "Product duplicated successfully",
       data: duplicatedProduct,
     });
