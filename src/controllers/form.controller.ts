@@ -58,24 +58,28 @@ export const readForm = async (
   next: NextFunction
 ) => {
   try {
-    const { formId } = req.query;
+    const { formId, ...queryParams } = req.query;
+
+    const filter: Record<string, any> = { ...queryParams };
 
     if (formId) {
       const form = await FormModel.findById(formId)
         .populate("createdBy updatedBy", "name email role isAdmin")
         .populate("fields.field")
-        .sort({ createdAt: -1 })
         .lean();
+
       if (!form) {
         throw new CustomError(404, "Form not found");
       }
-      res.json({ form });
+
+      res.json({ success: true, form });
     } else {
-      const forms = await FormModel.find()
+      const forms = await FormModel.find(filter)
         .populate("createdBy updatedBy", "name email role isAdmin")
         .populate("fields.field")
         .sort({ createdAt: -1 })
         .lean();
+
       res.json({
         success: true,
         message: "Forms retrieved successfully",
@@ -83,6 +87,7 @@ export const readForm = async (
       });
     }
   } catch (error) {
+    console.error("Error reading form:", error);
     next(new CustomError(500, "Error reading form"));
   }
 };
@@ -114,11 +119,11 @@ export const updateForm = async (
     // Handle status toggle if provided
     if (
       body.status !== undefined &&
-      !["Active", "Inactive"].includes(body.status)
+      !["active", "inactive"].includes(body.status)
     ) {
       throw new CustomError(
         400,
-        "Invalid status value. Use 'Active' or 'Inactive'"
+        "Invalid status value. Use 'active' or 'inactive'"
       );
     }
 

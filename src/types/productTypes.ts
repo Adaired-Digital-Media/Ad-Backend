@@ -70,7 +70,7 @@ export interface Form {
   productType: string;
   title: string;
   fields: FormField[];
-  status: "Active" | "Inactive";
+  status: "active" | "inactive";
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId | null;
   createdAt?: Date;
