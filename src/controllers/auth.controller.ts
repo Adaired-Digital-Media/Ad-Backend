@@ -79,7 +79,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
       ...(contact && { contact }),
       ...(status && { status }),
       ...(googleId && { googleId }),
-      isVerifiedUser: googleId ? true : false, 
+      isVerifiedUser: googleId ? true : false,
     });
 
     // Set admin status for first user
@@ -154,57 +154,167 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
 // ***************************************
 // ************* Login User **************
 // ***************************************
+// const login = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { identifier, password, googleId } = req.body;
+
+//     // Validate user input
+//     if (!validateInput(req, res)) return;
+
+//     // Fetch user with password and lean for speed
+//     let user;
+//     if (googleId) {
+//       // Google login
+//       user = await User.findOne({ googleId }).select("+password").lean();
+//       if (!user) {
+//         throw new CustomError(400, "User with this Google ID does not exist.");
+//       }
+//     } else {
+//       // Email/username login
+//       if (!identifier || !password) {
+//         throw new CustomError(400, "Identifier and password are required.");
+//       }
+//       user = await User.findOne({
+//         $or: [{ email: identifier }, { userName: identifier }],
+//       })
+//         .select("+password")
+//         .lean();
+
+//       if (!user) {
+//         throw new CustomError(
+//           400,
+//           "User with this email or username does not exist."
+//         );
+//       }
+
+//       // Verify password
+//       if (!user.password || !(await bcrypt.compare(password, user.password))) {
+//         throw new CustomError(401, "Incorrect Password!");
+//       }
+//     }
+
+//     // Generate tokens
+//     const accessToken = generateAccessToken(user._id.toString());
+//     const refreshToken =
+//       user.refreshToken &&
+//       jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SECRET as string)
+//         ? user.refreshToken
+//         : generateRefreshToken(user._id.toString());
+
+//     // Update refresh token if necessary (minimal DB write)
+//     if (refreshToken !== user.refreshToken) {
+//       await User.updateOne({ _id: user._id }, { refreshToken });
+//     }
+
+//     // Fetch user data with role in one query
+//     const userData = await User.findById(user._id)
+//       .populate("role", "name permissions")
+//       .lean();
+
+//     // Extract expiresAt from JWT
+//     const decodedToken = jwt.decode(accessToken) as JwtPayload;
+//     if (!decodedToken.exp) throw new Error("Token has no expiration");
+//     const expiresAt = new Date(decodedToken.exp * 1000);
+
+//     res.status(200).json({
+//       message: "Login successful",
+//       accessToken,
+//       refreshToken,
+//       user: userData,
+//       expiresAt: expiresAt,
+//     });
+//   } catch (error) {
+//     next(
+//       error instanceof CustomError
+//         ? error
+//         : new CustomError(500, "Login failed")
+//     );
+//   }
+// };
+
 const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log("Body : ", req.body)
     const { identifier, password, googleId } = req.body;
 
-    // Validate user input
-    if (!validateInput(req, res)) return;
+    console.log("Request body:", req.body);
 
-    // Fetch user with password and lean for speed
+    // Validate user input
+    if (!validateInput(req, res)) {
+      console.log("Input validation failed");
+      return;
+    }
+
+    // Fetch user with password and role
     let user;
     if (googleId) {
-      // Google login
-      user = await User.findOne({ googleId }).select("+password").lean();
+      user = await User.findOne({ googleId })
+        .select("+password")
+        .populate("role", "name permissions")
+        .lean();
       if (!user) {
         throw new CustomError(400, "User with this Google ID does not exist.");
       }
     } else {
-      // Email/username login
       if (!identifier || !password) {
         throw new CustomError(400, "Identifier and password are required.");
       }
       user = await User.findOne({
-        $or: [{ email: identifier }, { userName: identifier }],
-      }).select("+password").lean();
+        $or: [
+          { email: identifier.trim().toLowerCase() },
+          { userName: identifier.trim().toLowerCase() },
+        ],
+      })
+        .select("+password")
+        .populate("role", "name permissions")
+        .lean();
+
       if (!user) {
-        throw new CustomError(400, "User with this email or username does not exist.");
+        console.log("User not found for identifier:", identifier);
+        throw new CustomError(
+          400,
+          "User with this email or username does not exist."
+        );
       }
 
       // Verify password
       if (!user.password || !(await bcrypt.compare(password, user.password))) {
+        console.log("Password verification failed for user:", user._id);
         throw new CustomError(401, "Incorrect Password!");
       }
     }
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id.toString());
-    const refreshToken =
-      user.refreshToken &&
-      jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SECRET as string)
-        ? user.refreshToken
-        : generateRefreshToken(user._id.toString());
+    let refreshToken = null;
+    console.log("user.refreshToken:", user.refreshToken);
+    console.log("JWT_REFRESH_SECRET exists:", !!process.env.JWT_REFRESH_SECRET);
 
-    // Update refresh token if necessary (minimal DB write)
-    if (refreshToken !== user.refreshToken) {
-      await User.updateOne({ _id: user._id }, { refreshToken });
+    if (user.refreshToken) {
+      try {
+        const verified = jwt.verify(
+          user.refreshToken,
+          process.env.JWT_REFRESH_SECRET as string
+        );
+        console.log("jwt.verify result:", verified);
+        refreshToken = user.refreshToken; // Reuse valid token
+      } catch (error) {
+        console.error("jwt.verify error:", error);
+        refreshToken = generateRefreshToken(user._id.toString());
+      }
+    } else {
+      refreshToken = generateRefreshToken(user._id.toString());
     }
 
-    // Fetch user data with role in one query
-    const userData = await User.findById(user._id)
-      .populate("role", "name permissions")
-      .lean();
+    // Update refresh token if necessary
+    if (refreshToken !== user.refreshToken) {
+      try {
+        await User.updateOne({ _id: user._id }, { refreshToken });
+        console.log("Refresh token updated for user:", user._id);
+      } catch (error) {
+        console.error("Failed to update refresh token:", error);
+        throw new CustomError(500, "Failed to update refresh token");
+      }
+    }
 
     // Extract expiresAt from JWT
     const decodedToken = jwt.decode(accessToken) as JwtPayload;
@@ -215,10 +325,11 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
       message: "Login successful",
       accessToken,
       refreshToken,
-      user: userData,
-      expiresAt: expiresAt,
+      user,
+      expiresAt,
     });
   } catch (error) {
+    console.error("Login error:", error);
     next(
       error instanceof CustomError
         ? error
@@ -226,7 +337,6 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     );
   }
 };
-
 // ***************************************
 // ********** Refresh Token **************
 // ***************************************
@@ -304,7 +414,9 @@ const forgotPassword = async (
 
     const user = await User.findOne({
       $or: [{ email: identifier }, { userName: identifier }],
-    }).select("name email").lean();
+    })
+      .select("name email")
+      .lean();
     if (!user) {
       throw new CustomError(404, "User not found");
     }
